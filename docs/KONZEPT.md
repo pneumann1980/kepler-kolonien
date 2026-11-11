@@ -1,7 +1,8 @@
 # Konzept: Selbst gehosteter Multiplayer-Server für ein 2210-artiges Strategiespiel (Unraid / Docker, Smartphone-Clients)
 
 **Arbeitstitel:** *Kepler-Kolonien*
-**Status:** Konzept v1.2 (2026-11-11). Die Regeln sind gegen das offizielle Regelheft abgeglichen und die Entscheidungen des Auftraggebers eingearbeitet (§0.1). Es ist noch nichts implementiert.
+**Status:** Konzept v1.3 (2026-11-11). Die Regeln sind gegen das offizielle Regelheft abgeglichen, die Einkommenstabelle der Score Chart ist hinterlegt, alle Entscheidungen des Auftraggebers sind eingearbeitet (§0.1). Es ist noch nichts implementiert.
+**Projekt:** Kepler-Kolonien · Repository und Docker-Image `kepler-kolonien` · Tunnel-Hostname `kepler.<domain>` (Domain wird beim Deployment gesetzt; Platzhalter in diesem Dokument: `kepler.deine-domain.de`).
 **Zielplattform:** ein Docker-Container auf Unraid, öffentlich erreichbar über einen Cloudflare Tunnel. Clients sind Smartphones (PWA im Browser, keine App-Store-Installation).
 **Begleitdokument:** [`KARTEN.md`](KARTEN.md) mit dem vollständigen Katalog aller 100 Kommandokarten (5 Decks à 20).
 
@@ -44,7 +45,7 @@
 | Bots | Heuristik-Bot ist Teil des MVP | Gegner, Vertretung bei Abwesenheit, Werkzeug für das Karten-Balancing (§7.6) |
 | Zugang | Keine Benutzerkonten. Partien anlegen nur mit `ADMIN_PASSWORD`; Beitritt per Code, Link oder QR, danach Geräte-Token. | Minimaler Betrieb. Weil der Server öffentlich erreichbar ist, kommen Rate-Limiting anhand von `CF-Connecting-IP` und optional Cloudflare Access nur für `/admin` hinzu (§11). |
 | Netzwerk | **Cloudflare Tunnel**, ein öffentlicher Hostname mit TLS von Cloudflare | Kein offener Port am Router, gültiges Zertifikat, dadurch funktionieren PWA-Installation und Web Push. Der Preis: Cloudflare terminiert TLS und sieht den Spielverkehr im Klartext (§11.4). |
-| Unraid | Community-Applications-Template (XML), `/data` → `appdata`, internes Docker-Netz `kk-net`, PUID/PGID 99/100 | Unraid-Standardkonventionen |
+| Unraid | Community-Applications-Template (XML), `/data` → `appdata`, internes Docker-Netz `kepler-net`, PUID/PGID 99/100 | Unraid-Standardkonventionen |
 
 ### 0.1 Getroffene Entscheidungen
 
@@ -52,9 +53,11 @@
 |---|---|---|---|
 | E1 | Netzwerkzugang | Cloudflare Tunnel | §11.3–11.5 Einrichtung, Cloudflare-Einstellungen, Fallstricke; §12 `cloudflared` neben dem Spielcontainer; `TRUST_PROXY=cloudflare` |
 | E2 | Spielmodus | Asynchron über mehrere Tage | §7.4 Reaktionen über vorab hinterlegte **Reaktionsregeln**, ohne Wartefenster; §9.6 Fristen, Erinnerungen, Ruhezeiten, Bot-Vertretung, Urlaubsmodus |
-| E3 | Regelheft | Liegt vor (Regelheft Wizards of the Coast/Avalon Hill, 16 Seiten, Druckstand 2007) | §2 vollständig abgeglichen. Mehrere Annahmen aus v1.0 wurden korrigiert (§2.2). Offen bleibt nur die Einkommenstabelle der Score Chart (§16.3) |
+| E3 | Regelheft | Liegt vor (Regelheft Wizards of the Coast/Avalon Hill, 16 Seiten, Druckstand 2007) | §2 vollständig abgeglichen. Mehrere Annahmen aus v1.0 wurden korrigiert (§2.2) |
 | E4 | Bots im MVP | Ja | Bot Stufe 1 im MVP; jede Karte hat eine Bot-Heuristik (`KARTEN.md`) |
 | E5 | Kartenumfang | Alle Karten von Beginn an | Nach Regelheft **100 Karten** (5 × 20), nicht 65 wie in v1.0 angenommen. 67 eigene Kartentypen mit Mehrfachexemplaren, siehe `KARTEN.md` |
+| E6 | Name und Domain | Projekt **Kepler-Kolonien**; Repository und Image `kepler-kolonien`; Tunnel-Hostname `kepler.<domain>` | Docker-Netz `kepler-net`, Container `cloudflared-kepler`, WS-Subprotokoll `kepler.v1`; die Domain ist eine reine Deployment-Variable (`PUBLIC_URL`) |
+| E7 | Nachschub | Score Chart als **Tabelle** hinterlegen, keine Formel | §3.4: Tabelle aus der Score Chart des Regelhefts (S. 3). Sie weicht bei 45 Gebieten von ⌊n/3⌋ ab (14 statt 15) |
 
 ---
 
@@ -89,7 +92,7 @@ Quelle: offizielles Regelheft, 16 Seiten. Die 2210-Regeln stehen auf S. 1–9; S
 | R8 | Vor jedem Jahr: geheimes Gebot (0 bis alles), gleichzeitig aufdecken. Höchstbietender wählt einen beliebigen Zugplatz, dann der nächste. Gebote verfallen vollständig. | ✅ RH S. 3 | `bidding` |
 | R9 | Gleichstand: Die Beteiligten würfeln W6, der höhere Wurf wählt zuerst | ✅ RH S. 3 | `bidding.tieBreak: rollD6` |
 | R10 | Zugphasen in fester Reihenfolge: 1 Einkommen und Einsetzen → 2 Kommandanten anheuern und Stationen bauen → 3 Karten kaufen → 4 Karten spielen → 5 Invasionen → 6 Truppenbewegung; danach Karten mit Zeitpunkt „Zugende“ | ✅ RH S. 3, 8 | `turnPhases` |
-| R11 | Einkommen: Gezählt werden kontrollierte Gebiete inklusive Wasser und Mond. Der Wert in der Score Chart liefert die Anzahl **MODs und dieselbe Menge Energie**. | ✅ Prinzip, RH S. 3 / ⚠️ Tabellenwerte (nur auf der Score Chart abgedruckt) | `income.table` (Default ⌊n/3⌋, min. 3) |
+| R11 | Einkommen: Gezählt werden kontrollierte Gebiete inklusive Wasser und Mond. Der Wert in der Score Chart liefert die Anzahl **MODs und dieselbe Menge Energie**. | ✅ RH S. 3 inklusive Abbildung der Score Chart; Felder 5/10/15 dort verdeckt (§3.4) | `income.table` (Tabelle §3.4) |
 | R12 | Boni für vollständig kontrollierte Kontinente, Wasser- und Mondkolonien: **MODs und Energie**. Verwüstete Gebiete zählen beim Kontrollieren nicht mit; es gibt trotzdem den vollen Bonus. | ✅ RH S. 3 | `income.regionBonus: {mods: true, energy: true, ignoreDevastated: true}` |
 | R13 | +1 MOD pro kontrollierter Raumstation, eingesetzt im Gebiet der Station | ✅ RH S. 3, 4 | `station.modProduction: 1` |
 | R14 | Kontrolle: Ein Gebiet ist kontrolliert, wenn dort eigene Einheiten stehen **oder** eine eigene Station steht. Einheiten sind MODs und Kommandanten; die Station zählt nicht als Einheit. | ✅ RH S. 3, 5, 6 | Engine-Kern |
@@ -128,6 +131,7 @@ Quelle: offizielles Regelheft, 16 Seiten. Die 2210-Regeln stehen auf S. 1–9; S
 | Bedingung für Land-W8 | Ziel ist Land | Quelle **oder** Ziel ist Land (analog Marine und Raum) |
 | Wasser- und Mond-Bedingung | offen | Kommandant muss nur **im Spiel** sein |
 | Energie-Einkommen | widersprüchliche Quellen | entspricht dem MOD-Wert der Score Chart; Boni gelten für MODs **und** Energie |
+| Grundwert Einkommen | Formel ⌊n/3⌋, min. 3 | **Tabelle** der Score Chart; Abweichung bei 45 Gebieten (14 statt 15) |
 | Gleichstand Wertung | Energie → Gebiete | Energie → **Einheiten** → geteilt |
 | Ausscheiden | Karten an den Eroberer | Karten **abgelegt** |
 | Karten öffentlich? | Rückseite sichtbar | Typ und Anzahl öffentlich, Inhalt geheim (unverändert) |
@@ -239,7 +243,7 @@ Reaktionskarten („in fremden Zügen“) sind keine Phase. Sie öffnen an defin
 
 ```
 territories(p) = |{ t : controller(t) = p }|                        // Land + Wasser + Mond
-base(p)        = income.table[territories(p)]                        // Score-Chart-Wert, Default max(3, ⌊n/3⌋)
+base(p)        = income.table[territories(p)]                        // Score-Chart-Tabelle (unten)
 bonus(p)       = Σ region.bonus  für alle Regionen, deren nicht verwüstete Gebiete alle p kontrolliert
 mods(p)        = base(p) + bonus(p) + stationsControlled(p)          // Stations-MOD in der Station
 energy(p)      = base(p) + bonus(p)
@@ -247,6 +251,32 @@ score(p)       = territories(p) + bonus(p) + Σ Wertungskarten(p | Kommandant im
 ```
 
 Wertung in Zugreihenfolge. Gleichstand: Energie → Einheiten → geteilt (R34).
+
+**Score-Chart-Tabelle** (Grundwert = MODs = Energie). Quelle: Abbildung „Army Status Report“ im Regelheft, S. 3 (PDF-Seite 5), Feld für Feld abgelesen.
+
+| Kontrollierte Gebiete | Grundwert | | Kontrollierte Gebiete | Grundwert |
+|---|---:|---|---|---:|
+| 0–11 | 3 | | 39–41 | 13 |
+| 12–14 | 4 | | **42–45** | **14** |
+| 15 ⚠️ | 5 | | 46–47 | 15 |
+| 16–17 | 5 | | 48–50 | 16 |
+| 18–20 | 6 | | 51–53 | 17 |
+| 21–23 | 7 | | 54–56 | 18 |
+| 24–26 | 8 | | 57–59 | 19 |
+| 27–29 | 9 | | 60–62 | 20 |
+| 30–32 | 10 | | 63–65 | 21 |
+| 33–35 | 11 | | 66–68 | 22 |
+| 36–38 | 12 | | 69–70 | 23 |
+
+Anmerkungen:
+- **Abweichung von ⌊n/3⌋ nur bei 45** (Tabelle 14, Formel 15). Laut Auftraggeber ist der Wert auch auf dem Spielmaterial so abgedruckt. Die Engine verwendet deshalb ausschließlich die Tabelle, nie eine Formel.
+- **Verdeckte Felder:** In der Abbildung verdeckt die Vergrößerung „20 / 6“ die Felder 5, 10 und 15.
+  - 5 und 10 sind durch die Nachbarfelder eindeutig 3 (4 → 3, 6 → 3, 9 → 3, 11 → 3).
+  - 15 liegt zwischen 14 → 4 und 16 → 5 und könnte 4 oder 5 sein. Gesetzt ist **5** (konsistent mit ⌊n/3⌋). Bitte am Spielmaterial gegenprüfen (§16.3).
+- Erreichbar sind höchstens 65 Gebiete (69 minus 4 verwüstete). Die Tabelle reicht bis 70.
+- Die Tabelle ist Teil des Regelsatzes (`income.table`) und versioniert. Eine Hausregel, z. B. 45 → 15, ist eine neue Regelsatz-Version.
+
+**Beispiel:** 20 Gebiete, Kontinent Sahari (+3) vollständig, 2 Stationen → 6 + 3 = 9 Energie; 9 MODs frei verteilbar plus je 1 MOD in jedes der beiden Stationsgebiete.
 
 ### 3.5 Varianten (schaltbar)
 
@@ -270,8 +300,28 @@ placement: { firstRound: 1, thenPerTurn: 3, landOnly: true, startOrder: rollD6Cl
 startUnits: { commanders: [LAND, DIPLOMAT], stations: 1, placeTogether: true }
 bidding: { secret: true, refund: false, tieBreak: rollD6, highestPicksAnySlot: true }
 income:
-  table: classicThird            # ⚠️ ersetzen durch Score-Chart-Werte, sobald bekannt (§16.3)
-  minimum: 3
+  table:                         # Score Chart, RH S. 3 – [ab Gebietszahl, Grundwert]; gilt bis zur nächsten Stufe
+    - [0, 3]
+    - [12, 4]
+    - [15, 5]                    # Feld 15 im Regelheft verdeckt, Wert 5 angenommen (§3.4)
+    - [18, 6]
+    - [21, 7]
+    - [24, 8]
+    - [27, 9]
+    - [30, 10]
+    - [33, 11]
+    - [36, 12]
+    - [39, 13]
+    - [42, 14]                   # 42–45 → 14 (Abweichung von ⌊n/3⌋ bei 45)
+    - [46, 15]
+    - [48, 16]
+    - [51, 17]
+    - [54, 18]
+    - [57, 19]
+    - [60, 20]
+    - [63, 21]
+    - [66, 22]
+    - [69, 23]
   energyEqualsMods: true
   regionBonus: { mods: true, energy: true, ignoreDevastated: true }
 costs: { commander: 3, station: 5, card: 1 }
@@ -432,7 +482,7 @@ flowchart LR
     end
     TV["Tischmodus /table<br/>(optional, read-only)"]
     CF["Cloudflare Edge<br/>TLS, WAF, Cache für statische Assets"]
-    subgraph Unraid["Unraid (Docker-Netz kk-net)"]
+    subgraph Unraid["Unraid (Docker-Netz kepler-net)"]
         CFD["cloudflared<br/>(ausgehender Tunnel)"]
         subgraph Container["kepler-kolonien"]
             direction TB
@@ -624,7 +674,7 @@ Die Schnittstelle entspricht der eines Menschen: `onDecision(view: PlayerView) �
 
 ### 8.2 WebSocket `/ws`
 
-Verbindung mit `Sec-WebSocket-Protocol: kk.v1, token.<playerToken>`. Das Token steht damit nicht in der URL und landet nicht in Edge-Logs.
+Verbindung mit `Sec-WebSocket-Protocol: kepler.v1, token.<playerToken>`. Das Token steht damit nicht in der URL und landet nicht in Edge-Logs.
 
 ```jsonc
 // Client → Server
@@ -749,7 +799,7 @@ CREATE TABLE timers (id TEXT PRIMARY KEY, game_id TEXT, kind TEXT, due_at INTEGE
 
 - Täglich über die SQLite Online-Backup-API nach `/data/backups/`; Aufbewahrung `BACKUP_RETENTION_DAYS` (Default 14). Vor jeder Migration zusätzlich `pre-migration-*.db`.
 - Zusätzlich das Unraid-Plugin *Appdata Backup*.
-- Export einer Partie als `.kkgame` (Header, Events, Content-Hash).
+- Export einer Partie als `.keplergame` (Header, Events, Content-Hash).
 
 ### 10.3 Migrationen und Versionierung
 
@@ -782,17 +832,17 @@ CREATE TABLE timers (id TEXT PRIMARY KEY, game_id TEXT, kind TEXT, due_at INTEGE
 | Brute Force auf Beitrittscode und Admin-Passwort | Rate-Limit in der App (IP aus `CF-Connecting-IP`) plus Cloudflare-WAF-Regel; Admin optional hinter Cloudflare Access |
 | Missbrauch (viele Partien) | `MAX_ACTIVE_GAMES`; Partien anlegen nur mit Admin-Passwort |
 | Gestohlenes Spieler-Token | Host kann Tokens rotieren („Gerät abmelden“); Tokens sind pro Partie begrenzt |
-| Direkter Zugriff am Tunnel vorbei | Spielcontainer veröffentlicht **keinen** Host-Port, nur im Docker-Netz `kk-net` erreichbar (optional LAN-Port nur für Admin) |
+| Direkter Zugriff am Tunnel vorbei | Spielcontainer veröffentlicht **keinen** Host-Port, nur im Docker-Netz `kepler-net` erreichbar (optional LAN-Port nur für Admin) |
 | Gefälschte `CF-Connecting-IP` | Header wird nur akzeptiert, wenn die Verbindung aus dem Docker-Netz von `cloudflared` stammt |
 
 ### 11.3 Einrichtung Cloudflare Tunnel
 
-1. Die Domain liegt in Cloudflare (DNS bei Cloudflare). Subdomain z. B. `kk.example.de`.
+1. Die Domain liegt in Cloudflare (DNS bei Cloudflare). Subdomain z. B. `kepler.deine-domain.de`.
 2. Cloudflare Zero Trust → *Networks → Tunnels* → Tunnel anlegen (Typ *cloudflared*) → Token kopieren.
-3. *Public Hostname* einrichten: `kk.example.de` → Service `HTTP` → `kepler-kolonien:8210`.
-4. Auf Unraid ein Docker-Netz anlegen: `docker network create kk-net`. Beide Container kommen in dieses Netz (§12.4).
+3. *Public Hostname* einrichten: `kepler.deine-domain.de` → Service `HTTP` → `kepler-kolonien:8210`.
+4. Auf Unraid ein Docker-Netz anlegen: `docker network create kepler-net`. Beide Container kommen in dieses Netz (§12.4).
 5. `cloudflared`-Container mit `TUNNEL_TOKEN` starten. Er baut nur **ausgehende** Verbindungen auf (Port 7844, QUIC/HTTP2); eine Portfreigabe am Router ist nicht nötig. Blockiert eine Firewall UDP, hilft `--protocol http2`.
-6. Im Spielcontainer setzen: `PUBLIC_URL=https://kk.example.de` und `TRUST_PROXY=cloudflare`.
+6. Im Spielcontainer setzen: `PUBLIC_URL=https://kepler.deine-domain.de` und `TRUST_PROXY=cloudflare`.
 
 ### 11.4 Cloudflare-Einstellungen für diese Zone bzw. den Hostnamen
 
@@ -814,7 +864,7 @@ CREATE TABLE timers (id TEXT PRIMARY KEY, game_id TEXT, kind TEXT, due_at INTEGE
   - Der Abruf des PWA-Manifests (ohne Credentials) würde auf die Login-Seite umgeleitet, die Installation scheitert.
   - Ein Login-Redirect in einer installierten iOS-PWA ist unhandlich.
   - Spielerschutz übernehmen die App-Tokens; Access ist nur für Admin-Pfade sinnvoll.
-- **Eine Origin für alle:** Wer mal über `http://unraid:8210` und mal über `https://kk.example.de` spielt, hat zwei getrennte Identitäten (`localStorage`). Deshalb wird nur die Tunnel-URL verwendet, auch im LAN. Der Datenverkehr läuft dann über Cloudflare; die Latenz von ≈ 20–60 ms ist für ein Rundenspiel irrelevant.
+- **Eine Origin für alle:** Wer mal über `http://unraid:8210` und mal über `https://kepler.deine-domain.de` spielt, hat zwei getrennte Identitäten (`localStorage`). Deshalb wird nur die Tunnel-URL verwendet, auch im LAN. Der Datenverkehr läuft dann über Cloudflare; die Latenz von ≈ 20–60 ms ist für ein Rundenspiel irrelevant.
 - **Datenschutz:** Cloudflare terminiert TLS und sieht den Spielverkehr inklusive Tokens im Klartext. Für ein privates Spiel ohne personenbezogene Daten außer Spielernamen ist das akzeptabel, wird aber dokumentiert. Die Alternative ohne diesen Trade-off wäre Tailscale.
 - **WebSocket-Abbrüche:** Cloudflare beendet Verbindungen bei Edge-Deployments gelegentlich. Reconnect mit `lastSeq` ist Pflichtbestandteil des Clients.
 - **Web Push** läuft ausgehend vom Container zu FCM, APNs und Mozilla, also nicht über den Tunnel. Der Container braucht ausgehendes Internet (Unraid-Default).
@@ -868,10 +918,10 @@ Image ≈ 120–160 MB, Multi-Arch (amd64/arm64), veröffentlicht unter `ghcr.io
 |---|---|---|
 | `PUID` / `PGID` | `99` / `100` | Besitzer der Dateien in `/data` |
 | `TZ` | `Europe/Berlin` | Zeitzone für Fristen, Ruhezeiten, Logs |
-| `PUBLIC_URL` | – (Pflicht) | `https://kk.example.de`, für Links, QR-Codes und Push |
+| `PUBLIC_URL` | – (Pflicht) | `https://kepler.deine-domain.de`, für Links, QR-Codes und Push |
 | `ADMIN_PASSWORD` | – (Pflicht) | Admin-Funktionen |
-| `TRUST_PROXY` | `cloudflare` | `false` / `true` (X-Forwarded-For) / `cloudflare` (CF-Connecting-IP aus `kk-net`) |
-| `TRUSTED_PROXY_CIDR` | Subnetz von `kk-net` | Absender, denen Proxy-Header geglaubt werden |
+| `TRUST_PROXY` | `cloudflare` | `false` / `true` (X-Forwarded-For) / `cloudflare` (CF-Connecting-IP aus `kepler-net`) |
+| `TRUSTED_PROXY_CIDR` | Subnetz von `kepler-net` | Absender, denen Proxy-Header geglaubt werden |
 | `LOG_LEVEL` | `info` | |
 | `BACKUP_RETENTION_DAYS` | `14` | |
 | `MAX_ACTIVE_GAMES` | `20` | |
@@ -883,30 +933,30 @@ Image ≈ 120–160 MB, Multi-Arch (amd64/arm64), veröffentlicht unter `ghcr.io
 
 ```yaml
 networks:
-  kk-net: { name: kk-net }
+  kepler-net: { name: kepler-net }
 
 services:
   kepler-kolonien:
     image: ghcr.io/<user>/kepler-kolonien:latest
     container_name: kepler-kolonien
     restart: unless-stopped
-    networks: [kk-net]
+    networks: [kepler-net]
     # kein "ports:", erreichbar nur über den Tunnel
     environment:
       TZ: Europe/Berlin
       PUID: "99"
       PGID: "100"
       ADMIN_PASSWORD: "change-me"
-      PUBLIC_URL: "https://kk.example.de"
+      PUBLIC_URL: "https://kepler.deine-domain.de"
       TRUST_PROXY: "cloudflare"
     volumes:
       - /mnt/user/appdata/kepler-kolonien:/data
 
   cloudflared:
     image: cloudflare/cloudflared:<version>      # konkrete Version pinnen (nicht :latest), Updates bewusst
-    container_name: cloudflared-kk
+    container_name: cloudflared-kepler
     restart: unless-stopped
-    networks: [kk-net]
+    networks: [kepler-net]
     command: tunnel --no-autoupdate run
     environment:
       TUNNEL_TOKEN: "<token aus Zero Trust>"
@@ -915,10 +965,10 @@ services:
 
 ### 12.4 Unraid
 
-1. **Netz anlegen** (einmalig, Terminal): `docker network create kk-net`. Unter *Settings → Docker* muss „Preserve user defined networks“ aktiviert sein, damit das Netz Neustarts überlebt.
-2. **Spielcontainer** über das Template `deploy/unraid/kepler-kolonien.xml` (unten). *Network Type:* `kk-net`. Port-Mapping leer lassen (oder nur zum LAN-Debuggen setzen).
-3. **cloudflared** über Community Applications (Container mit dem offiziellen Image) oder ein eigenes Template. *Network Type:* `kk-net`. *Post Arguments:* `tunnel --no-autoupdate run`. Variable `TUNNEL_TOKEN`. Ist schon ein `cloudflared` für andere Dienste im Einsatz, reicht es, ihn ins Netz `kk-net` aufzunehmen und den Public Hostname zu ergänzen.
-4. Prüfen: `https://kk.example.de/healthz` liefert `ok`. Im Browser: PWA installieren, Push-Test im Profil.
+1. **Netz anlegen** (einmalig, Terminal): `docker network create kepler-net`. Unter *Settings → Docker* muss „Preserve user defined networks“ aktiviert sein, damit das Netz Neustarts überlebt.
+2. **Spielcontainer** über das Template `deploy/unraid/kepler-kolonien.xml` (unten). *Network Type:* `kepler-net`. Port-Mapping leer lassen (oder nur zum LAN-Debuggen setzen).
+3. **cloudflared** über Community Applications (Container mit dem offiziellen Image) oder ein eigenes Template. *Network Type:* `kepler-net`. *Post Arguments:* `tunnel --no-autoupdate run`. Variable `TUNNEL_TOKEN`. Ist schon ein `cloudflared` für andere Dienste im Einsatz, reicht es, ihn ins Netz `kepler-net` aufzunehmen und den Public Hostname zu ergänzen.
+4. Prüfen: `https://kepler.deine-domain.de/healthz` liefert `ok`. Im Browser: PWA installieren, Push-Test im Profil.
 
 ```xml
 <?xml version="1.0"?>
@@ -926,15 +976,15 @@ services:
   <Name>kepler-kolonien</Name>
   <Repository>ghcr.io/&lt;user&gt;/kepler-kolonien:latest</Repository>
   <Registry>https://ghcr.io</Registry>
-  <Network>kk-net</Network>
+  <Network>kepler-net</Network>
   <Privileged>false</Privileged>
   <Overview>Selbst gehosteter Multiplayer-Server für ein rundenbasiertes Strategiespiel (2–5 Spieler, asynchron) mit Smartphone-Clients (PWA). Zugriff über Cloudflare Tunnel.</Overview>
   <Category>GameServers:</Category>
-  <WebUI>https://kk.example.de/</WebUI>
+  <WebUI>https://kepler.deine-domain.de/</WebUI>
   <Icon>https://raw.githubusercontent.com/&lt;user&gt;/kepler-kolonien/main/deploy/unraid/icon.png</Icon>
   <Config Name="Appdata" Target="/data" Default="/mnt/user/appdata/kepler-kolonien" Mode="rw" Type="Path" Display="always" Required="true"/>
   <Config Name="Admin-Passwort" Target="ADMIN_PASSWORD" Default="" Type="Variable" Display="always" Required="true" Mask="true"/>
-  <Config Name="Öffentliche URL" Target="PUBLIC_URL" Default="https://kk.example.de" Type="Variable" Display="always" Required="true"/>
+  <Config Name="Öffentliche URL" Target="PUBLIC_URL" Default="https://kepler.deine-domain.de" Type="Variable" Display="always" Required="true"/>
   <Config Name="Proxy-Modus" Target="TRUST_PROXY" Default="cloudflare" Type="Variable" Display="advanced"/>
   <Config Name="VAPID-Kontakt" Target="VAPID_SUBJECT" Default="mailto:admin@localhost" Type="Variable" Display="advanced"/>
   <Config Name="PUID" Target="PUID" Default="99" Type="Variable" Display="advanced"/>
@@ -974,6 +1024,7 @@ Balancing-Simulationen (§14) laufen als CLI im Container (`docker exec kepler-k
 | Ebene | Werkzeug | Inhalt |
 |---|---|---|
 | Regeln (Unit) | Vitest | **Ein Test je Regel R1–R38** inklusive Grenzfälle aus dem Regelheft: W8-Bedingung von/in, Nachziehen der W8-Kommandanten, Station ersetzen oder zerstören, leere Ziele, Marine stirbt mitten im Zug, Truppenbewegung Mond ↔ Erde |
+| Einkommen | Vitest (Golden) | Alle 70 Felder der Score-Chart-Tabelle einzeln, insbesondere 44/45/46; Boni mit verwüsteten Gebieten; Stations-MOD landet im Stationsgebiet |
 | Karten | Vitest, generiert aus YAML | Pro Kartentyp: Spielbarkeit (Kommandant, Energie, Zeitpunkt), Effekt, Zusammenspiel mit Reaktionen |
 | Invarianten (Property) | fast-check | Zufällige legale Command-Folgen bis Spielende; Invarianten aus §3.1; `project()` ohne Leaks; `replay(events) == state` |
 | Determinismus | Golden Files | Feste Seeds und Skripte → Hash des Endzustands |
@@ -992,7 +1043,7 @@ Schätzung in Personentagen (PT) für eine erfahrene Entwicklerin bzw. einen erf
 
 | Meilenstein | Inhalt | PT |
 |---|---|---|
-| **M0 Regelabgleich** | ✅ erledigt (§2). Offen nur noch die Einkommenstabelle der Score Chart (§16.3) | 0,5 |
+| **M0 Regelabgleich** | ✅ erledigt (§2, Score-Chart-Tabelle §3.4) | 0 |
 | **M1 Engine-Kern** | Datenmodell, Setup inklusive 2er-Variante, Jahr/Gebot/Zug, Kampf, Einkommen, Wertung, Truppenbewegung (Pfad), Projektion, RNG, Markov-Rechner; Tests R1–R38 | 11–15 |
 | **M2 Server** | Fastify, WS-Protokoll, Actor, Event-Store, Snapshots, persistente Timer, Lobby, Tokens, Rate-Limit (CF-Header) | 6–8 |
 | **M3 Client-MVP** | Lobby, SVG-Karte (Planet/Mond, Zoom, Umlauf), Phasen-UI, Bottom Sheets, Log, Wiedergabe „Was ist passiert?“ | 11–13 |
@@ -1000,7 +1051,7 @@ Schätzung in Personentagen (PT) für eine erfahrene Entwicklerin bzw. einen erf
 | **M5 Asynchron-Betrieb** | Fristen, Erinnerungen, Ruhezeiten, Urlaubsmodus, Web Push, optional ntfy, Bot-Vertretung | 5–7 |
 | **M6 Packaging** | Dockerfile, Multi-Arch-CI, Unraid-Templates, Cloudflare-Doku, Backup, Admin-Seite | 3–4 |
 | **M7 Bots und Balancing** | Bot Stufe 1 inklusive Kartenheuristiken, Balancing-CLI, 2–3 Balancing-Iterationen für Karten und Kontinentboni | 9–12 |
-| **Summe MVP** | | **≈ 59–76 PT** |
+| **Summe MVP** | | **≈ 58–75 PT** |
 | M8 (nach MVP) | Bot Stufe 2 (Monte Carlo), Kartenbalancing aus echten Partien, Statistiken | 5–8 |
 
 **Reihenfolge und Abhängigkeiten:**
@@ -1034,9 +1085,9 @@ Schätzung in Personentagen (PT) für eine erfahrene Entwicklerin bzw. einen erf
 
 ### 16.3 Offene Punkte
 
-1. **Einkommenstabelle der Score Chart:** Das Regelheft verweist für MODs und Energie pro Gebietsanzahl auf die Zahl unten rechts im jeweiligen Feld der Score Chart. Die Werte stehen nicht im Text. Bitte ein Foto der Score Chart oder die Zahlenreihe schicken (z. B. „1–11 → 3, 12–14 → 4 …“). Bis dahin gilt der Default ⌊n/3⌋, mindestens 3, als Parameter.
-2. **Domain/Subdomain** für den Tunnel (nur für Templates und Doku; Platzhalter `kk.example.de`).
-3. **Projektname:** `kepler-kolonien` übernehmen oder einen eigenen wählen? Davon hängen Repository- und Imagename ab.
+1. **Score Chart, Feld 15:** Im Regelheft verdeckt; angenommen ist 5. Ein kurzer Blick auf die gedruckte Score Chart klärt das (einzige Stelle, an der 4 oder 5 möglich ist).
+2. **Repository umbenennen:** `risk_docker` → `kepler-kolonien` in den GitHub-Einstellungen. GitHub leitet alte URLs weiter; lokale Remotes funktionieren weiter, sollten aber umgestellt werden.
+3. **Domain:** wird beim Deployment über `PUBLIC_URL` und den Public Hostname im Tunnel gesetzt; keine Codeabhängigkeit.
 
 ---
 
