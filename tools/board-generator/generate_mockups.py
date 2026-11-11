@@ -152,7 +152,7 @@ def s_lobby():
     players = [("rot", "Paul (Host)", "bereit"), ("gelb", "Mara", "bereit"),
                ("gruen", "Jonas", "verbunden"), ("violett", "Bot · Stufe 2", "bereit")]
     b = [status_bar(), text(24, 82, "Neue Partie", 24, "#ffffff", 800),
-         text(24, 106, "Kepler-Kolonien · Regelsatz »klassisch-2210«", 12, "#9fb3cc"),
+         text(24, 106, "Kepler-Kolonien · Regelsatz »standard« v2", 12, "#9fb3cc"),
          rect(16, 124, PW - 32, 120, "#152036", 16),
          text(32, 152, "Beitrittscode", 12, "#9fb3cc", 600),
          text(32, 192, "QX7 - 42K", 34, "#ffffff", 800, extra='letter-spacing="2"'),
@@ -170,8 +170,8 @@ def s_lobby():
         b.append(text(60, y + 28, n, 15, "#ffffff", 600))
         b.append(text(PW - 32, y + 28, st, 12, "#4ade80" if st == "bereit" else "#fbbf24", 700, "end"))
     b.append(text(24, 534, "Einstellungen", 15, "#ffffff", 700))
-    for i, (k, v) in enumerate([("Modus", "Asynchron + Push"), ("Zug-Timeout", "24 h → Auto-Pass"),
-                                ("Reaktionsfenster", "20 s live / 2 h async"), ("Würfel", "Server-RNG, auditierbar")]):
+    for i, (k, v) in enumerate([("Modus", "Asynchron + Push"), ("Zug-Frist", "24 h → Bot-Vertretung"),
+                                ("Reaktionen", "Reaktionsregeln (sofort)"), ("Würfel", "Server-RNG, auditierbar")]):
         y = 558 + i * 26
         b.append(text(24, y, k, 13, "#9fb3cc"))
         b.append(text(PW - 24, y, v, 13, "#e8eef7", 600, "end"))
@@ -214,8 +214,8 @@ def s_reaction():
          text(24, 270, "Reaktionskarte spielen?", 16, "#ffffff", 800),
          text(24, 292, "Nur Karten, deren Kommandant im Spiel ist und die du bezahlen kannst.", 11, "#9fb3cc")]
     cards = [("Schildgenerator", "Diplomat", "1 E", "Verteidiger würfelt diese Runde mit W8.", True),
-             ("Tarnfeld", "Land", "2 E", "2 MODs aus der Reserve in Dünenmeer.", True),
-             ("Notevakuierung", "Raum", "3 E", "Raum-Kdt. nicht im Spiel", False)]
+             ("Tarnstellung", "Land", "1 E", "+2 MODs des Verteidigers in Dünenmeer.", True),
+             ("Orbitale Verstärkung", "Raum", "2 E", "Raum-Kdt. nicht im Spiel", False)]
     for i, (n, deck, cost, desc, ok) in enumerate(cards):
         y = 308 + i * 96
         b.append(rect(16, y, PW - 32, 86, "#152036" if ok else "#111827", 14, "#60a5fa" if i == 0 else None))
@@ -298,7 +298,7 @@ def s_bid():
 
 
 screens = [("1 · Lobby / Beitritt", s_lobby()), ("2 · Karte: Invasion", s_map()),
-           ("3 · Reaktionsfenster (Verteidiger)", s_reaction()), ("4 · Kaufen & Hand", s_shop()),
+           ("3 · Reaktionsfenster (Live-Modus)", s_reaction()), ("4 · Kaufen & Hand", s_shop()),
            ("5 · Geheimes Gebot", s_bid())]
 total_w = len(screens) * (PW + GAP) + GAP
 svg = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {total_w} {PH + 110}" width="{total_w}" '

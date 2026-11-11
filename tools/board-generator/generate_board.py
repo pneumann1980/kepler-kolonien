@@ -60,10 +60,11 @@ OCEANS = [
 ]
 
 MOON_COLONIES = [
+    # Struktur laut Regelheft: 3 Mondkolonien mit 4 bzw. 6 Gebieten (6 + 4 + 4 = 14)
     ("HOC", "Selene-Hochland", -90, "#c9c9d6",
-     ["Landeplatz Alpha", "Lichtkrater", "Hochebene", "Kraterrand", "Spiegelfeld"]),
+     ["Landeplatz Alpha", "Lichtkrater", "Hochebene", "Kraterrand", "Spiegelfeld", "Sternwarte"]),
     ("TEN", "Mare Tenebris", 30, "#a7a7b8",
-     ["Landeplatz Beta", "Schattenmeer", "Staubbecken", "Grabenbruch", "Basaltsee"]),
+     ["Landeplatz Beta", "Schattenmeer", "Staubbecken", "Grabenbruch"]),
     ("POL", "Polarkappe", 150, "#b8c4cf",
      ["Landeplatz Gamma", "Eiskrater", "Kryobasis", "Dunkelseite"]),
 ]

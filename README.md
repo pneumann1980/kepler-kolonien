@@ -6,6 +6,7 @@ Strategiespiel im Stil von *Risk 2210 A.D.*. Spieler nutzen ihre Smartphones als
 **Status:** Konzeptphase. Es ist noch nichts implementiert.
 
 - Konzept: [`docs/KONZEPT.md`](docs/KONZEPT.md)
+- Kartenkatalog (100 Karten): [`docs/KARTEN.md`](docs/KARTEN.md)
 - Spielbrett-Unterlage (eigenes Design): [`docs/assets/board/`](docs/assets/board/) (`planet.svg`, `moon.svg`, `map.json`)
 - UI-Wireframes: [`docs/assets/ui/`](docs/assets/ui/)
 - Asset-Generatoren: [`tools/board-generator/`](tools/board-generator/)

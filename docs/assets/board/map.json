@@ -103,7 +103,7 @@
       "id": "HOC",
       "name": "Selene-Hochland",
       "kind": "lunarColony",
-      "bonus": 3,
+      "bonus": 4,
       "borderTerritories": 3
     },
     {
@@ -111,14 +111,14 @@
       "name": "Mare Tenebris",
       "kind": "lunarColony",
       "bonus": 3,
-      "borderTerritories": 3
+      "borderTerritories": 4
     },
     {
       "id": "POL",
       "name": "Polarkappe",
       "kind": "lunarColony",
-      "bonus": 3,
-      "borderTerritories": 3
+      "bonus": 2,
+      "borderTerritories": 2
     }
   ],
   "territories": [
@@ -1167,13 +1167,14 @@
       "board": "moon",
       "landingSite": true,
       "label": [
-        487,
-        117
+        532,
+        133
       ],
       "adjacent": [
         "HOC-2",
         "HOC-3",
-        "HOC-4"
+        "HOC-4",
+        "HOC-6"
       ]
     },
     {
@@ -1183,13 +1184,13 @@
       "region": "HOC",
       "board": "moon",
       "label": [
-        213,
-        281
+        192,
+        313
       ],
       "adjacent": [
         "HOC-1",
         "HOC-3",
-        "HOC-5",
+        "HOC-6",
         "POL-2"
       ]
     },
@@ -1200,14 +1201,13 @@
       "region": "HOC",
       "board": "moon",
       "label": [
-        411,
-        263
+        400,
+        267
       ],
       "adjacent": [
         "HOC-1",
         "HOC-2",
-        "HOC-4",
-        "HOC-5"
+        "HOC-6"
       ]
     },
     {
@@ -1217,14 +1217,13 @@
       "region": "HOC",
       "board": "moon",
       "label": [
-        754,
-        232
+        707,
+        199
       ],
       "adjacent": [
         "HOC-1",
-        "HOC-3",
         "HOC-5",
-        "TEN-2"
+        "HOC-6"
       ]
     },
     {
@@ -1234,13 +1233,32 @@
       "region": "HOC",
       "board": "moon",
       "label": [
-        482,
-        437
+        822,
+        310
       ],
       "adjacent": [
+        "HOC-4",
+        "HOC-6",
+        "TEN-1",
+        "TEN-2"
+      ]
+    },
+    {
+      "id": "HOC-6",
+      "name": "Sternwarte",
+      "type": "moon",
+      "region": "HOC",
+      "board": "moon",
+      "label": [
+        505,
+        455
+      ],
+      "adjacent": [
+        "HOC-1",
         "HOC-2",
         "HOC-3",
         "HOC-4",
+        "HOC-5",
         "POL-2",
         "POL-3",
         "TEN-2",
@@ -1255,14 +1273,14 @@
       "board": "moon",
       "landingSite": true,
       "label": [
-        744,
-        765
+        793,
+        710
       ],
       "adjacent": [
+        "HOC-5",
         "TEN-2",
         "TEN-3",
-        "TEN-4",
-        "TEN-5"
+        "TEN-4"
       ]
     },
     {
@@ -1272,14 +1290,13 @@
       "region": "TEN",
       "board": "moon",
       "label": [
-        840,
-        389
+        734,
+        524
       ],
       "adjacent": [
-        "HOC-4",
         "HOC-5",
+        "HOC-6",
         "TEN-1",
-        "TEN-3",
         "TEN-4"
       ]
     },
@@ -1290,12 +1307,12 @@
       "region": "TEN",
       "board": "moon",
       "label": [
-        744,
-        585
+        573,
+        867
       ],
       "adjacent": [
+        "POL-3",
         "TEN-1",
-        "TEN-2",
         "TEN-4"
       ]
     },
@@ -1306,33 +1323,15 @@
       "region": "TEN",
       "board": "moon",
       "label": [
-        566,
-        575
+        610,
+        666
       ],
       "adjacent": [
-        "HOC-5",
+        "HOC-6",
         "POL-3",
         "TEN-1",
         "TEN-2",
-        "TEN-3",
-        "TEN-5"
-      ]
-    },
-    {
-      "id": "TEN-5",
-      "name": "Basaltsee",
-      "type": "moon",
-      "region": "TEN",
-      "board": "moon",
-      "label": [
-        576,
-        855
-      ],
-      "adjacent": [
-        "POL-3",
-        "POL-4",
-        "TEN-1",
-        "TEN-4"
+        "TEN-3"
       ]
     },
     {
@@ -1343,8 +1342,8 @@
       "board": "moon",
       "landingSite": true,
       "label": [
-        120,
-        598
+        140,
+        611
       ],
       "adjacent": [
         "POL-2",
@@ -1359,12 +1358,12 @@
       "region": "POL",
       "board": "moon",
       "label": [
-        138,
-        462
+        173,
+        469
       ],
       "adjacent": [
         "HOC-2",
-        "HOC-5",
+        "HOC-6",
         "POL-1",
         "POL-3"
       ]
@@ -1376,16 +1375,16 @@
       "region": "POL",
       "board": "moon",
       "label": [
-        399,
-        600
+        411,
+        605
       ],
       "adjacent": [
-        "HOC-5",
+        "HOC-6",
         "POL-1",
         "POL-2",
         "POL-4",
-        "TEN-4",
-        "TEN-5"
+        "TEN-3",
+        "TEN-4"
       ]
     },
     {
@@ -1395,13 +1394,12 @@
       "region": "POL",
       "board": "moon",
       "label": [
-        299,
-        807
+        298,
+        772
       ],
       "adjacent": [
         "POL-1",
-        "POL-3",
-        "TEN-5"
+        "POL-3"
       ]
     }
   ],
