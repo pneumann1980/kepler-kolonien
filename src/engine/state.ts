@@ -1,11 +1,19 @@
 // Zustands-Hilfsfunktionen und gemeinsame Mutationen (von Regeln und Karten genutzt)
 import {
-  TDEF, RDEF, REGION_MEMBERS, TERRITORY_IDS, LANDING_SITES, MAX_STATIONS, NEUTRAL_ID, isAdjacent, baseIncome,
+  TDEF, RDEF, REGION_MEMBERS, TERRITORY_IDS, LANDING_SITES, MAX_STATIONS, NEUTRAL_ID, baseIncome, neighborsFor, adjacentFor,
 } from './content.ts';
 import type {
   GameState, Player, TerritoryState, CommanderType, Effect, EffectKind, LogEntry, UnitMove,
 } from './types.ts';
 import { GameError } from './types.ts';
+
+/** Spielrelevante Nachbarn gemäß Kartenrevision der Partie */
+export function nbrs(s: Pick<GameState, 'mapId'>, id: string): string[] {
+  return neighborsFor(s.mapId, id);
+}
+export function adj(s: Pick<GameState, 'mapId'>, a: string, b: string): boolean {
+  return adjacentFor(s.mapId, a, b);
+}
 
 export function fail(msg: string): never {
   throw new GameError(msg);
@@ -231,7 +239,7 @@ export function pathExists(s: GameState, pid: string, from: string, to: string):
   const ownStationTerrs = TERRITORY_IDS.filter((id) => s.territories[id].owner === pid && s.territories[id].station);
   while (queue.length) {
     const cur = queue.shift()!;
-    const next = [...TDEF[cur].adjacent];
+    const next = [...nbrs(s, cur)];
     if (ownStationTerrs.includes(cur)) next.push(...LANDING_SITES);
     if (TDEF[cur].landingSite) next.push(...ownStationTerrs);
     for (const n of next) {
@@ -253,7 +261,7 @@ export function withinRange(s: GameState, pid: string, n: number): Set<string> {
     const cur = queue.shift()!;
     const d = dist.get(cur)!;
     if (d >= n) continue;
-    for (const nb of TDEF[cur].adjacent) {
+    for (const nb of nbrs(s, cur)) {
       if (!dist.has(nb)) { dist.set(nb, d + 1); queue.push(nb); }
     }
   }
@@ -261,7 +269,6 @@ export function withinRange(s: GameState, pid: string, n: number): Set<string> {
 }
 
 export function adjacentToOwn(s: GameState, pid: string, id: string): boolean {
-  return TDEF[id].adjacent.some((n) => s.territories[n].owner === pid);
+  return nbrs(s, id).some((n) => s.territories[n].owner === pid);
 }
 
-export { isAdjacent };

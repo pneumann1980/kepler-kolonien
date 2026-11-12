@@ -4,7 +4,7 @@ import { roll, randInt } from './rng.ts';
 import {
   fail, player, pname, tname, terr, units, owned, commanderLocation, commanderInPlay, stationCount,
   log, addEffect, findEffects, removeUnits, moveUnits, validateMove, controlsRegion, withinRange,
-  adjacentToOwn, checkElimination, onOwnerChange, controlledRegions,
+  adjacentToOwn, checkElimination, onOwnerChange, controlledRegions, nbrs,
 } from './state.ts';
 import type { CommanderType, GameState, Invasion, Targets, UnitMove } from './types.ts';
 import { COMMANDER_TYPES } from './types.ts';
@@ -145,7 +145,7 @@ export const CARD_DEFS: CardDef[] = [
     id: 'LAN-05', deck: 'LAND', name: 'Nachschubkolonne', copies: 1, powerUp: 1, timing: 'VOR', target: 'none', value: 4,
     text: '+1 MOD in jedes eigene Gebiet, das an ein gegnerisches Landgebiet grenzt (max. 5).',
     apply: (s, pid) => {
-      const front = owned(s, pid).filter((id) => TDEF[id].adjacent.some((n) => {
+      const front = owned(s, pid).filter((id) => nbrs(s, id).some((n) => {
         const o = s.territories[n].owner; return o && o !== pid && TDEF[n].type === 'land';
       }));
       front.sort((a, b) => units(s.territories[a]) - units(s.territories[b]));
@@ -369,7 +369,7 @@ export const CARD_DEFS: CardDef[] = [
   {
     id: 'SPC-07', deck: 'SPACE', name: 'Orbitales Bombardement', copies: 1, powerUp: 3, timing: 'VOR', target: 'enemyTerritory', value: 2,
     text: 'Gegnerisches Gebiet neben einem eigenen Stationsgebiet: 3 W6, je 5–6 → −1 Einheit. Keine Invasion.',
-    targets: (s, pid) => enemyWithUnits(s, pid).filter((id) => TDEF[id].adjacent.some((n) => s.territories[n].owner === pid && s.territories[n].station)),
+    targets: (s, pid) => enemyWithUnits(s, pid).filter((id) => nbrs(s, id).some((n) => s.territories[n].owner === pid && s.territories[n].station)),
     apply: (s, pid, tg) => {
       const r = damage(s, tg.territory!, hits(s, 3, 5));
       log(s, { kind: 'text', msg: `Orbitales Bombardement auf ${tname(tg.territory!)}: ${r} Verluste.`, player: pid });
@@ -484,7 +484,11 @@ export const CARD_DEFS: CardDef[] = [
     id: 'NUC-06', deck: 'NUCLEAR', name: 'Taktischer Sprengkopf', copies: 2, powerUp: 1, timing: 'ANG', target: 'none', value: 2,
     text: 'Eigene Invasion erklärt: Der Verteidiger verliert vor dem ersten Wurf 1 Einheit.',
     check: (s, _pid, ctx) => (units(s.territories[ctx.invasion!.to]) > 0 ? null : 'Ziel ohne Einheiten'),
-    apply: (s, _pid, _tg, ctx) => { removeUnits(s, ctx.invasion!.to, 1); },
+    apply: (s, _pid, _tg, ctx) => {
+      // Während der Invasion bleibt der Verteidiger Besitzer; fällt die letzte Einheit, folgt das Nachrücken
+      const t = terr(s, ctx.invasion!.to);
+      if (t.mods > 0) t.mods--; else t.commanders.pop();
+    },
   },
   {
     id: 'NUC-07', deck: 'NUCLEAR', name: 'Erstschlag-Doktrin', copies: 1, powerUp: 2, timing: 'VOR', target: 'none', value: 2,
@@ -512,7 +516,7 @@ export const CARD_DEFS: CardDef[] = [
     apply: (s, pid, tg) => {
       const id = tg.territory!;
       damage(s, id, 3, true);
-      for (const n of TDEF[id].adjacent) if (s.territories[n].owner) damage(s, n, 1, true);
+      for (const n of nbrs(s, id)) if (s.territories[n].owner) damage(s, n, 1, true);
       log(s, { kind: 'text', msg: `Kettenreaktion in ${tname(id)}.`, player: pid, data: { territory: id } });
     },
   },

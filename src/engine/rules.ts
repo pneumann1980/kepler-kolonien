@@ -1,16 +1,17 @@
 // Regel-Engine: Spielaufbau, Gebote, Zugablauf, Invasionen, Truppenbewegung, Wertung
 import {
   TDEF, RDEF, REGION_MEMBERS, TERRITORY_IDS, IDS_BY_TYPE, START_MODS, COSTS, MAX_STATIONS, MAX_CARD_BUY,
-  DEVASTATED_AT_SETUP, TWO_PLAYER_NEUTRAL, NEUTRAL_ID, isAdjacent, COMMANDER_NAMES,
+  DEVASTATED_AT_SETUP, TWO_PLAYER_NEUTRAL, NEUTRAL_ID, COMMANDER_NAMES, CURRENT_MAP_ID,
 } from './content.ts';
 import { seedFromHex, shuffle, roll } from './rng.ts';
 import {
   fail, player, pname, tname, terr, units, owned, commanderInPlay, stationCount, totalUnits, activePlayers,
   log, findEffects, hasEffect, removeEffect, expireEffects, computeIncome, validateMove, moveUnits, removeUnits,
-  checkElimination, takeOver, pathExists, controlledRegions,
+  checkElimination, takeOver, pathExists, controlledRegions, nbrs, adj,
 } from './state.ts';
 import { CARD, CARD_DEFS, buildDecks, cardType, validateTargets, type ReactionCtx, type Timing } from './cards.ts';
-import { rollBattle, maxAttackDice, maxDefenseDice } from './combat.ts';
+import { rollBattle, maxAttackDice, maxDefenseDice, qualifyingAttackCommanders } from './combat.ts';
+import { validateCommand } from './validate.ts';
 import type {
   GameState, GameConfig, Command, CommanderType, Player, TurnStep, UnitMove, ScoreLine, Targets, Invasion,
 } from './types.ts';
@@ -21,12 +22,12 @@ export interface NewPlayer { id: string; name: string; color: string; isBot?: bo
 export const DEFAULT_CONFIG: GameConfig = { years: 5, setupMode: 'quick', startEnergy: 3 };
 
 // =================================================================== Spielaufbau
-export function createGame(opts: { players: NewPlayer[]; seedHex: string; commitment: string; config?: Partial<GameConfig> }): GameState {
+export function createGame(opts: { players: NewPlayer[]; seedHex: string; commitment: string; config?: Partial<GameConfig>; mapId?: string }): GameState {
   const n = opts.players.length;
   if (n < 2 || n > 5) fail('2 bis 5 Spieler erforderlich');
   const config = { ...DEFAULT_CONFIG, ...opts.config };
   const s: GameState = {
-    schema: 1, version: 0, mapId: 'kepler-colonies', config, seedCommitment: opts.commitment,
+    schema: 1, version: 0, mapId: opts.mapId ?? CURRENT_MAP_ID, config, seedCommitment: opts.commitment,
     rng: seedFromHex(opts.seedHex),
     players: opts.players.map((p) => ({
       id: p.id, name: p.name, color: p.color, isBot: Boolean(p.isBot), botLevel: p.botLevel ?? 1,
@@ -69,10 +70,18 @@ export function createGame(opts: { players: NewPlayer[]; seedHex: string; commit
     log(s, { kind: 'setup', msg: 'Neutrale Armee besetzt 16 Land-, 6 Wasser- und 6 Mondgebiete mit je 3 MODs.' });
   }
 
-  // Startspieler per W6 -> Rotation der Sitzreihenfolge
-  const start = roll(s.rng, 6) % n;
+  // Startspieler: jeder würfelt W6, Gleichstand an der Spitze würfelt erneut (RH S. 2); dann Sitzreihenfolge
+  let contenders = [...s.seatOrder];
+  const rounds: string[] = [];
+  while (contenders.length > 1) {
+    const rolls = contenders.map((id) => ({ id, v: roll(s.rng, 6) }));
+    rounds.push(rolls.map((r) => `${pname(s, r.id)} ${r.v}`).join(', '));
+    const top = Math.max(...rolls.map((r) => r.v));
+    contenders = rolls.filter((r) => r.v === top).map((r) => r.id);
+  }
+  const start = s.seatOrder.indexOf(contenders[0]);
   s.seatOrder = [...s.seatOrder.slice(start), ...s.seatOrder.slice(0, start)];
-  log(s, { kind: 'setup', msg: `${pname(s, s.seatOrder[0])} beginnt die Aufstellung.` });
+  log(s, { kind: 'setup', msg: `Startwurf (W6): ${rounds.join(' | Stechen: ')} → ${pname(s, s.seatOrder[0])} beginnt die Aufstellung.` });
 
   const startMods = START_MODS[n];
   const remaining: Record<string, number> = Object.fromEntries(s.seatOrder.map((id) => [id, startMods]));
@@ -253,8 +262,7 @@ function endTurn(s: GameState): void {
 }
 
 function autoClaimBonus(s: GameState, pid: string): void {
-  const deck = COMMANDER_TYPES.filter((d) => commanderInPlay(s, pid, d) && s.decks[d].length)
-    .sort((a, b) => deckValue(s, b) - deckValue(s, a))[0];
+  const deck = bonusDecks(s, pid).sort((a, b) => deckValue(s, b) - deckValue(s, a))[0];
   if (deck) drawCard(s, pid, deck, true);
   s.turn!.bonusCardPending = false;
 }
@@ -278,7 +286,8 @@ function endGame(s: GameState): void {
   s.phase = 'gameOver';
   s.turn = null;
   s.invasion = null;
-  const order = s.turnOrder.length ? s.turnOrder : s.seatOrder;
+  // Zugreihenfolge des letzten Jahres, danach früher ausgeschiedene Spieler (sonst fehlten sie in der Wertung)
+  const order = [...s.turnOrder, ...s.seatOrder.filter((id) => !s.turnOrder.includes(id) && id !== NEUTRAL_ID)];
   const lines: ScoreLine[] = [];
   for (const pid of order) {
     const p = player(s, pid);
@@ -433,7 +442,7 @@ export function invadeError(s: GameState, pid: string, from: string, to: string)
     if (!TDEF[to].landingSite) return 'Vom Planeten aus nur Landeplätze erreichbar';
     connected = true;
   } else {
-    connected = isAdjacent(from, to);
+    connected = adj(s, from, to);
     if (!connected && hasEffect(s, 'currents', (e) => e.owner === pid) && ft === 'water') {
       const col = TDEF[from].region;
       connected = TDEF[to].region === col || TDEF[to].adjacent.some((n) => TDEF[n].region === col && TDEF[n].type === 'water');
@@ -467,6 +476,14 @@ function doInvade(s: GameState, pid: string, from: string, to: string, move?: Un
   const landing = findEffects(s, 'earthLanding', (e) => e.owner === pid && e.territory === to);
   if (landing.length && TDEF[from].type === 'moon') removeEffect(s, landing[0].id);
   const b = terr(s, to);
+  if (b.owner === pid) {
+    // Erdlandung auf ein eigenes Gebiet: Verlegung ohne Kampf, ohne Reaktionen, ohne Eroberungsbonus
+    const mv = move ?? defaultMove(s, from, 1, []);
+    validateMove(s, from, mv);
+    moveUnits(s, from, to, mv);
+    log(s, { kind: 'move', player: pid, msg: `${pname(s, pid)} verlegt per Erdlandung ${mv.mods + mv.commanders.length} Einheit(en) von ${tname(from)} nach ${tname(to)}.`, data: { from, to } });
+    return;
+  }
   if (units(b) === 0) {
     const mv = move ?? defaultMove(s, from, 1, []);
     validateMove(s, from, mv);
@@ -484,6 +501,7 @@ function doInvade(s: GameState, pid: string, from: string, to: string, move?: Un
   const inv: Invasion = {
     attacker: pid, defender: b.owner, from, to, rolls: 0, contested: true, mods: { played: [] },
     lastAttDice: 0, lastD8Commanders: [], awaitingAdvance: false,
+    viaCard: landing.length && TDEF[from].type === 'moon' ? 'earthLanding' : undefined,
   };
   s.invasion = inv;
   log(s, { kind: 'invasion', player: pid, msg: `${pname(s, pid)} greift ${tname(to)} (${pname(s, b.owner)}) von ${tname(from)} an.`, data: { from, to } });
@@ -500,22 +518,31 @@ function checkInvasionState(s: GameState): void {
   }
 }
 
-function doAttack(s: GameState, pid: string, dice?: number, blitz?: boolean, minRemaining = 1): void {
+function doAttack(s: GameState, pid: string, dice?: number, blitz?: boolean, minRemaining = 1, d8?: CommanderType[]): void {
   requireTurn(s, pid);
   const inv = s.invasion;
   if (!inv || inv.attacker !== pid) fail('Keine laufende Invasion');
   if (inv.awaitingAdvance) fail('Erst Einheiten nachziehen');
   if (inv.deterred) fail('Abschreckung: zuerst zahlen oder abbrechen');
+  if (d8) {
+    const q = qualifyingAttackCommanders(s, inv);
+    for (const c of d8) if (!q.includes(c)) fail(`${COMMANDER_NAMES[c]}-Kommandant darf hier keinen W8 würfeln`);
+    if (dice && d8.length > dice) fail('Mehr W8 gewählt als Würfel');
+  }
   const rolls: { att: number[]; def: number[]; attSides: number[]; defSides: number[]; attLoss: number; defLoss: number }[] = [];
   let guard = 0;
+  let stopReason: string | undefined;
   do {
+    const blocker = attackBlocker(s, inv);
+    if (blocker) { if (!rolls.length) fail(blocker); stopReason = blocker; break; }
     const maxA = maxAttackDice(s, inv);
     if (maxA < 1) { if (!rolls.length) fail('Zu wenige Einheiten für einen Angriff'); break; }
     const a = dice ? Math.max(1, Math.min(dice, maxA)) : maxA;
     const defender = terr(s, inv.to).owner;
     const dp = defender ? s.players.find((x) => x.id === defender) : undefined;
     const d = dp && !dp.settings.defendMax ? 1 : maxDefenseDice(s, inv);
-    const r = rollBattle(s, inv, a, d);
+    const chosen = d8?.filter((c) => terr(s, inv.from).commanders.includes(c));
+    const r = rollBattle(s, inv, a, d, chosen);
     removeUnits(s, inv.from, r.attLoss, true);
     applyDefenderLosses(s, inv, r.defLoss);
     inv.rolls++;
@@ -525,13 +552,14 @@ function doAttack(s: GameState, pid: string, dice?: number, blitz?: boolean, min
     if (units(terr(s, inv.to)) === 0) { inv.awaitingAdvance = true; break; }
     guard++;
   } while (blitz && units(terr(s, inv.from)) > Math.max(1, minRemaining) && guard < 200);
+  if (!stopReason && blitz && !inv.awaitingAdvance) stopReason = attackBlocker(s, inv) ?? undefined;
   const attLoss = rolls.reduce((n, r) => n + r.attLoss, 0);
   const defLoss = rolls.reduce((n, r) => n + r.defLoss, 0);
   log(s, {
     kind: 'battle', player: pid,
     msg: `${tname(inv.from)} → ${tname(inv.to)}: ${rolls.length} Wurf/Würfe, Angreifer −${attLoss}, Verteidiger −${defLoss}` +
-      (inv.awaitingAdvance ? '. Gebiet erobert!' : '.'),
-    data: { from: inv.from, to: inv.to, rolls, attLoss, defLoss, conquered: inv.awaitingAdvance },
+      (inv.awaitingAdvance ? '. Gebiet erobert!' : '.') + (stopReason ? ` Angriff gestoppt: ${stopReason}.` : ''),
+    data: { from: inv.from, to: inv.to, rolls, attLoss, defLoss, conquered: inv.awaitingAdvance, stopReason },
   });
 }
 
@@ -542,7 +570,7 @@ function applyDefenderLosses(s: GameState, inv: Invasion, n: number): void {
     if (!t.commanders.length) break;
     const c = t.commanders.pop()!;
     if (inv.mods.immunity) {
-      const refuge = TDEF[inv.to].adjacent.find((x) => s.territories[x].owner === t.owner && x !== inv.from);
+      const refuge = nbrs(s, inv.to).find((x) => s.territories[x].owner === t.owner && x !== inv.from);
       if (refuge) {
         s.territories[refuge].commanders.push(c);
         log(s, { kind: 'text', msg: `${COMMANDER_NAMES[c]}-Kommandant flieht nach ${tname(refuge)}.` });
@@ -565,7 +593,7 @@ function doAdvance(s: GameState, pid: string, move: UnitMove): void {
   if (mustCmd.length <= avail && !mustCmd.every((c) => move.commanders.includes(c))) {
     fail('Kommandanten, die W8 geliefert haben, müssen mit einrücken');
   }
-  const prev = terr(s, inv.to).owner;
+  const prev = inv.defender ?? terr(s, inv.to).owner;
   takeOver(s, inv.to, pid);
   moveUnits(s, inv.from, inv.to, move);
   const t = s.turn!;
@@ -575,7 +603,7 @@ function doAdvance(s: GameState, pid: string, move: UnitMove): void {
     if (t.contestedConquests >= 3 && !t.bonusAwarded) {
       t.bonusAwarded = true;
       player(s, pid).energy += 1;
-      t.bonusCardPending = COMMANDER_TYPES.some((d) => commanderInPlay(s, pid, d) && s.decks[d].length > 0);
+      t.bonusCardPending = bonusDecks(s, pid).length > 0;
       log(s, { kind: 'text', player: pid, msg: `${pname(s, pid)} erhält den 3-Gebiete-Bonus: +1 Energie${t.bonusCardPending ? ' und eine Karte nach Wahl' : ''}.` });
     }
   }
@@ -598,8 +626,15 @@ export function applyCommand(state: GameState, pid: string, cmd: Command): GameS
   return s;
 }
 
+const ALWAYS_ALLOWED = ['SetAutoReact', 'SetDefendMax', 'AnswerTrade', 'Resign', 'ClaimBonusCard'];
+
 function dispatch(s: GameState, pid: string, cmd: Command): void {
+  validateCommand(cmd);
   const p = player(s, pid);
+  if (s.phase === 'turn' && s.turn?.player === pid && s.turn.bonusCardPending && !ALWAYS_ALLOWED.includes(cmd.t)) {
+    if (bonusDecks(s, pid).length) fail('Zuerst die Bonuskarte für drei umkämpfte Eroberungen wählen');
+    s.turn.bonusCardPending = false; // kein gültiges Deck mehr -> Auswahl entfällt
+  }
   if (s.phase === 'gameOver' && !['SetAutoReact', 'SetDefendMax'].includes(cmd.t)) fail('Die Partie ist beendet');
   if (p.eliminated && !['SetAutoReact', 'SetDefendMax'].includes(cmd.t)) fail('Du bist ausgeschieden');
   switch (cmd.t) {
@@ -733,6 +768,7 @@ function dispatch(s: GameState, pid: string, cmd: Command): void {
       requireTurn(s, pid);
       if (!s.turn!.bonusCardPending) fail('Keine Bonuskarte offen');
       if (!commanderInPlay(s, pid, cmd.deck)) fail('Kommandant dieses Decks nicht im Spiel');
+      if (!s.decks[cmd.deck].length) fail('Dieses Deck ist leer');
       drawCard(s, pid, cmd.deck, true);
       s.turn!.bonusCardPending = false;
       return;
@@ -749,7 +785,7 @@ function dispatch(s: GameState, pid: string, cmd: Command): void {
       doInvade(s, pid, cmd.from, cmd.to, cmd.move);
       return;
     case 'Attack':
-      doAttack(s, pid, cmd.dice, cmd.blitz, cmd.minRemaining);
+      doAttack(s, pid, cmd.dice, cmd.blitz, cmd.minRemaining, cmd.d8);
       return;
     case 'Advance':
       doAdvance(s, pid, cmd.move);
@@ -759,7 +795,7 @@ function dispatch(s: GameState, pid: string, cmd: Command): void {
       const inv = s.invasion;
       if (!inv || inv.attacker !== pid) fail('Keine laufende Invasion');
       if (inv.awaitingAdvance) fail('Gebiet erobert – bitte nachziehen');
-      if (inv.rolls === 0 && maxAttackDice(s, inv) > 0) fail('Vor dem Abbruch muss mindestens einmal gewürfelt werden');
+      if (inv.rolls === 0 && maxAttackDice(s, inv) > 0 && !attackBlocker(s, inv)) fail('Vor dem Abbruch muss mindestens einmal gewürfelt werden');
       s.invasion = null;
       log(s, { kind: 'text', player: pid, msg: `${p.name} bricht die Invasion auf ${tname(inv.to)} ab.` });
       return;
@@ -811,7 +847,7 @@ function dispatch(s: GameState, pid: string, cmd: Command): void {
       const inv = s.invasion;
       if (inv) {
         if (inv.awaitingAdvance) fail('Gebiet erobert – bitte nachziehen');
-        if (inv.rolls === 0 && !inv.deterred && maxAttackDice(s, inv) > 0) fail('Vor dem Abbruch muss mindestens einmal gewürfelt werden');
+        if (inv.rolls === 0 && !inv.deterred && maxAttackDice(s, inv) > 0 && !attackBlocker(s, inv)) fail('Vor dem Abbruch muss mindestens einmal gewürfelt werden');
         s.invasion = null;
       }
       endTurn(s);
@@ -874,6 +910,20 @@ export function pendingActors(s: GameState): string[] {
     default:
       return [];
   }
+}
+
+/** Decks, aus denen die Bonuskarte gewählt werden darf */
+export function bonusDecks(s: GameState, pid: string): CommanderType[] {
+  return COMMANDER_TYPES.filter((d) => commanderInPlay(s, pid, d) && s.decks[d].length > 0);
+}
+
+/** Grund, warum der nächste Wurf einer laufenden Invasion unzulässig ist (Kommandant gefallen) */
+export function attackBlocker(s: GameState, inv: Invasion): string | null {
+  const ft = TDEF[inv.from].type, tt = TDEF[inv.to].type;
+  if ((ft === 'water' || tt === 'water') && !commanderInPlay(s, inv.attacker, 'NAVAL')) return 'Marine-Kommandant nicht mehr im Spiel (Wassergebiete)';
+  if ((ft === 'moon' || tt === 'moon') && !commanderInPlay(s, inv.attacker, 'SPACE')) return 'Raum-Kommandant nicht mehr im Spiel (Mondgebiete)';
+  if (terr(s, inv.from).owner !== inv.attacker) return 'Ausgangsgebiet verloren';
+  return null;
 }
 
 export function setupRemaining(s: GameState, pid: string): number {

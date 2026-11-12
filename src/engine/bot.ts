@@ -5,7 +5,7 @@ import { applyCommand, invadeError, pendingActors, deckValue } from './rules.ts'
 import { CARD, cardType, validTargets, type CardDef } from './cards.ts';
 import { conquestProbability, qualifyingAttackCommanders } from './combat.ts';
 import {
-  units, owned, commanderInPlay, commanderLocation, stationCount, pathExists, player, controlsRegion,
+  units, owned, commanderInPlay, commanderLocation, stationCount, pathExists, player, controlsRegion, nbrs,
 } from './state.ts';
 import type { Command, CommanderType, GameState, UnitMove } from './types.ts';
 import { COMMANDER_TYPES, GameError } from './types.ts';
@@ -21,7 +21,7 @@ function hash(s: GameState, pid: string, salt: number): number {
 }
 
 function enemyNeighbors(s: GameState, pid: string, id: string): string[] {
-  return TDEF[id].adjacent.filter((n) => {
+  return nbrs(s, id).filter((n) => {
     const o = s.territories[n].owner;
     return o && o !== pid;
   });
@@ -58,12 +58,16 @@ function invasionCandidates(s: GameState, pid: string): Candidate[] {
   for (const from of owned(s, pid)) {
     const a = s.territories[from];
     if (units(a) < 2) continue;
-    const targets = new Set<string>(TDEF[from].adjacent);
+    const targets = new Set<string>(nbrs(s, from));
     if (a.station) for (const id of IDS_BY_TYPE.moon) if (TDEF[id].landingSite) targets.add(id);
     for (const e of s.effects) if (e.kind === 'earthLanding' && e.owner === pid && e.territory) targets.add(e.territory);
     for (const to of targets) {
       if (invadeError(s, pid, from, to)) continue;
       const b = s.territories[to];
+      if (b.owner === pid) { // Erdlandung auf eigenes Gebiet: Verlegung
+        if (units(a) >= 3) res.push({ from, to, p: 1, score: 0.5, empty: true });
+        continue;
+      }
       const empty = units(b) === 0;
       let p = 1;
       if (!empty) {

@@ -46,6 +46,27 @@ export function baseIncome(territories: number): number {
   return v;
 }
 
+/**
+ * Kartenrevisionen. Die Gebiete, Regionen und Boni sind identisch; Revision 2 ergänzt genau eine
+ * Landverbindung über den Ost-West-Rand (Kaltmark <-> Kupferhang). Partien mit der alten Kennung behalten
+ * ihre Topologie.
+ */
+export const MAP_ID_V1 = 'kepler-colonies';
+export const MAP_ID_V2 = 'kepler-colonies-2';
+export const CURRENT_MAP_ID = MAP_ID_V2;
+export const EAST_WEST_LAND_ROUTE: [string, string] = ['BOR-3', 'VEL-5'];
+const EXTRA_V2: Record<string, string[]> = { 'BOR-3': ['VEL-5'], 'VEL-5': ['BOR-3'] };
+
+/** Nachbarn eines Gebiets für eine bestimmte Kartenrevision (Spielregeln, Client und Bots nutzen nur dies) */
+export function neighborsFor(mapId: string, id: string): string[] {
+  const base = TDEF[id]?.adjacent ?? [];
+  if (mapId === MAP_ID_V2 && EXTRA_V2[id]) return [...base, ...EXTRA_V2[id]];
+  return base;
+}
+export function adjacentFor(mapId: string, a: string, b: string): boolean {
+  return (ADJ[a]?.has(b) ?? false) || (mapId === MAP_ID_V2 && (EXTRA_V2[a]?.includes(b) ?? false));
+}
+
 export const START_MODS: Record<number, number> = { 2: 30, 3: 35, 4: 30, 5: 25 };
 export const COSTS = { commander: 3, station: 5, card: 1 } as const;
 export const MAX_STATIONS = 4;

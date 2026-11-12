@@ -1,7 +1,7 @@
 // Kampfauflösung gemäß Regelheft (W6/W8, Kommandanten, Stationen, Kartenmodifikatoren)
-import { TDEF, isAdjacent } from './content.ts';
+import { TDEF } from './content.ts';
 import { roll } from './rng.ts';
-import { findEffects, hasEffect, terr, units, commanderLocation } from './state.ts';
+import { findEffects, hasEffect, terr, units, commanderLocation, adj } from './state.ts';
 import type { CommanderType, GameState, Invasion } from './types.ts';
 
 function empAffects(s: GameState, territory: string): boolean {
@@ -44,8 +44,8 @@ export interface DicePlan {
   d8Commanders: CommanderType[];
 }
 
-export function planDice(s: GameState, inv: Invasion, attDice: number, defDice: number): DicePlan {
-  const q = qualifyingAttackCommanders(s, inv);
+export function planDice(s: GameState, inv: Invasion, attDice: number, defDice: number, chosen?: CommanderType[]): DicePlan {
+  const q = qualifyingAttackCommanders(s, inv).filter((c) => !chosen || chosen.includes(c));
   let d8 = 0;
   const d8Commanders: CommanderType[] = [];
   for (const c of q) {
@@ -55,7 +55,7 @@ export function planDice(s: GameState, inv: Invasion, attDice: number, defDice: 
     d8 += give;
     d8Commanders.push(c);
   }
-  if (inv.mods.attackerExtraD8) d8 += inv.mods.attackerExtraD8;
+  if (inv.mods.attackerExtraD8 && d8Commanders.includes('LAND')) d8 += inv.mods.attackerExtraD8;
   if (inv.mods.attackerMinD8) d8 = Math.max(d8, inv.mods.attackerMinD8);
   if (inv.mods.attackerAllD8) d8 = attDice;
   if (inv.mods.attackerNoD8) { d8 = 0; d8Commanders.length = 0; }
@@ -74,7 +74,7 @@ export function planDice(s: GameState, inv: Invasion, attDice: number, defDice: 
     if (!empAffects(s, inv.to)) defD8 = to.commanders.length;
     if (to.owner && hasEffect(s, 'fieldCommand', (e) => e.owner === to.owner)) {
       const lc = commanderLocation(s, to.owner, 'LAND');
-      if (lc && (lc === inv.to || isAdjacent(lc, inv.to))) defD8 = Math.max(defD8, 1);
+      if (lc && (lc === inv.to || adj(s, lc, inv.to))) defD8 = Math.max(defD8, 1);
     }
   }
   defD8 = Math.min(defD8, defDice);
@@ -92,8 +92,8 @@ export interface RollResult {
   d8Commanders: CommanderType[];
 }
 
-export function rollBattle(s: GameState, inv: Invasion, attDice: number, defDice: number): RollResult {
-  const plan = planDice(s, inv, attDice, defDice);
+export function rollBattle(s: GameState, inv: Invasion, attDice: number, defDice: number, chosen?: CommanderType[]): RollResult {
+  const plan = planDice(s, inv, attDice, defDice, chosen);
   const att = plan.attSides.map((sd) => ({ v: roll(s.rng, sd), sd }));
   const bonus = inv.mods.defenderBonus ?? 0;
   const def = plan.defSides.map((sd) => ({ v: Math.min(9, roll(s.rng, sd) + bonus), sd }));

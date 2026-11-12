@@ -108,6 +108,7 @@ export interface Invasion {
   awaitingAdvance: boolean;
   deterred?: number;         // Abschreckung: zu zahlende Energie, sonst Abbruch
   earthLanding?: boolean;
+  viaCard?: 'earthLanding';
 }
 
 export type EffectKind =
@@ -207,7 +208,7 @@ export type Command =
   | { t: 'BuyCards'; decks: CommanderType[] }
   | { t: 'PlayCard'; card: string; targets?: Targets }
   | { t: 'Invade'; from: string; to: string; move?: UnitMove }
-  | { t: 'Attack'; dice?: number; blitz?: boolean; minRemaining?: number }
+  | { t: 'Attack'; dice?: number; blitz?: boolean; minRemaining?: number; d8?: CommanderType[] }
   | { t: 'Advance'; move: UnitMove }
   | { t: 'Retreat' }
   | { t: 'Deterrence'; pay: boolean }
