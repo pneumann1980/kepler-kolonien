@@ -4,7 +4,9 @@
   "private": true,
   "description": "Selbst gehosteter Multiplayer-Server für ein rundenbasiertes Strategiespiel mit Smartphone-Clients (PWA).",
   "type": "module",
-  "engines": { "node": ">=22.18" },
+  "engines": {
+    "node": ">=22.18"
+  },
   "scripts": {
     "build": "node scripts/build-client.mjs",
     "start": "node --disable-warning=ExperimentalWarning src/server/main.ts",
@@ -23,6 +25,8 @@
     "@types/ws": "^8.18.1",
     "esbuild": "^0.25.10",
     "preact": "^10.27.2",
-    "typescript": "^5.9.3"
+    "topojson-client": "^3.1.0",
+    "typescript": "^5.9.3",
+    "world-atlas": "^2.0.2"
   }
 }

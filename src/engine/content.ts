@@ -1,5 +1,6 @@
 // Statische Spielinhalte: Karte, Regionen, Score-Chart-Tabelle, Konstanten
 import mapJson from '../../content/board/map.json' with { type: 'json' };
+import legacyMapJson from '../../content/board/legacy/kepler-colonies-map.json' with { type: 'json' };
 import type { MapDef, RegionDef, TerritoryDef, TerritoryType, CommanderType } from './types.ts';
 
 export const MAP: MapDef = {
@@ -20,16 +21,9 @@ export const IDS_BY_TYPE: Record<TerritoryType, string[]> = {
   moon: MAP.territories.filter((t) => t.type === 'moon').map((t) => t.id),
 };
 export const LANDING_SITES = MAP.territories.filter((t) => t.landingSite).map((t) => t.id);
-const ADJ: Record<string, Set<string>> = Object.fromEntries(MAP.territories.map((t) => [t.id, new Set(t.adjacent)]));
-export function isAdjacent(a: string, b: string): boolean {
-  return ADJ[a]?.has(b) ?? false;
-}
-export function neighbors(a: string): string[] {
-  return TDEF[a]?.adjacent ?? [];
-}
-/** Landgebiet grenzt an Wasser */
-export function isCoastal(id: string): boolean {
-  return TDEF[id].type === 'land' && neighbors(id).some((n) => TDEF[n].type === 'water');
+/** Landgebiet grenzt an Wasser (gemäß Kartenrevision) */
+export function isCoastalFor(mapId: string, id: string): boolean {
+  return TDEF[id].type === 'land' && neighborsFor(mapId, id).some((n) => TDEF[n].type === 'water');
 }
 
 /**
@@ -47,24 +41,70 @@ export function baseIncome(territories: number): number {
 }
 
 /**
- * Kartenrevisionen. Die Gebiete, Regionen und Boni sind identisch; Revision 2 ergänzt genau eine
- * Landverbindung über den Ost-West-Rand (Kaltmark <-> Kupferhang). Partien mit der alten Kennung behalten
- * ihre Topologie.
+ * Kartenrevisionen. Gebiets-IDs, Regionen, Typen, Landeplätze und Boni sind in allen Revisionen identisch;
+ * es unterscheiden sich Nachbarschaften, Namen und Darstellung.
+ *  - kepler-colonies    (Rev. 1): Kepler-Fantasiekarte, Graph aus content/board/legacy/kepler-colonies-map.json
+ *  - kepler-colonies-2  (Rev. 2): wie Rev. 1 + Landroute Kaltmark <-> Kupferhang über den Ost-West-Rand
+ *  - kepler-earth-3     (Rev. 3): Erde & Mond (Natural Earth / NASA), eigener Graph aus content/board/map.json;
+ *                                 Ost-West-Landroute Beringia <-> Fernost über die Beringstraße
+ * Laufende Partien behalten die Kennung, mit der sie angelegt wurden.
  */
 export const MAP_ID_V1 = 'kepler-colonies';
 export const MAP_ID_V2 = 'kepler-colonies-2';
-export const CURRENT_MAP_ID = MAP_ID_V2;
+export const MAP_ID_V3 = 'kepler-earth-3';
+export const CURRENT_MAP_ID = MAP_ID_V3;
+export const MAP_IDS = [MAP_ID_V1, MAP_ID_V2, MAP_ID_V3] as const;
+if (MAP.id !== MAP_ID_V3) throw new Error(`content/board/map.json hat Kennung ${MAP.id}, erwartet ${MAP_ID_V3}`);
+/** Ost-West-Landroute je Revision (Rev. 1: keine) */
+export const EAST_WEST_LAND_ROUTES: Record<string, [string, string] | null> = {
+  [MAP_ID_V1]: null, [MAP_ID_V2]: ['BOR-3', 'VEL-5'], [MAP_ID_V3]: ['BOR-1', 'KAS-4'],
+};
+/** @deprecated Rev.-2-Route; für neue Partien EAST_WEST_LAND_ROUTES[CURRENT_MAP_ID] verwenden */
 export const EAST_WEST_LAND_ROUTE: [string, string] = ['BOR-3', 'VEL-5'];
-const EXTRA_V2: Record<string, string[]> = { 'BOR-3': ['VEL-5'], 'VEL-5': ['BOR-3'] };
 
+const LEGACY_TERRITORIES = (legacyMapJson as unknown as { territories: TerritoryDef[] }).territories;
+const LEGACY_REGIONS = (legacyMapJson as unknown as { regions: RegionDef[] }).regions;
+function adjOf(list: { id: string; adjacent: string[] }[], extra: Record<string, string[]> = {}): Record<string, string[]> {
+  return Object.fromEntries(list.map((t) => [t.id, [...t.adjacent, ...(extra[t.id] ?? [])]]));
+}
+const GRAPH: Record<string, Record<string, string[]>> = {
+  [MAP_ID_V1]: adjOf(LEGACY_TERRITORIES),
+  [MAP_ID_V2]: adjOf(LEGACY_TERRITORIES, { 'BOR-3': ['VEL-5'], 'VEL-5': ['BOR-3'] }),
+  [MAP_ID_V3]: adjOf(MAP.territories),
+};
+const GRAPH_SETS: Record<string, Record<string, Set<string>>> = Object.fromEntries(
+  Object.entries(GRAPH).map(([k, g]) => [k, Object.fromEntries(Object.entries(g).map(([id, ns]) => [id, new Set(ns)]))]),
+);
+const NAMES: Record<string, Record<string, string>> = {
+  [MAP_ID_V1]: Object.fromEntries(LEGACY_TERRITORIES.map((t) => [t.id, t.name])),
+  [MAP_ID_V3]: Object.fromEntries(MAP.territories.map((t) => [t.id, t.name])),
+};
+NAMES[MAP_ID_V2] = NAMES[MAP_ID_V1];
+const REGION_NAMES: Record<string, Record<string, string>> = {
+  [MAP_ID_V1]: Object.fromEntries(LEGACY_REGIONS.map((r) => [r.id, r.name])),
+  [MAP_ID_V3]: Object.fromEntries(MAP.regions.map((r) => [r.id, r.name])),
+};
+REGION_NAMES[MAP_ID_V2] = REGION_NAMES[MAP_ID_V1];
+
+function rev(mapId: string): string {
+  return GRAPH[mapId] ? mapId : MAP_ID_V1;   // unbekannte/alte Kennungen: ursprünglicher Graph
+}
 /** Nachbarn eines Gebiets für eine bestimmte Kartenrevision (Spielregeln, Client und Bots nutzen nur dies) */
 export function neighborsFor(mapId: string, id: string): string[] {
-  const base = TDEF[id]?.adjacent ?? [];
-  if (mapId === MAP_ID_V2 && EXTRA_V2[id]) return [...base, ...EXTRA_V2[id]];
-  return base;
+  return GRAPH[rev(mapId)][id] ?? [];
 }
 export function adjacentFor(mapId: string, a: string, b: string): boolean {
-  return (ADJ[a]?.has(b) ?? false) || (mapId === MAP_ID_V2 && (EXTRA_V2[a]?.includes(b) ?? false));
+  return GRAPH_SETS[rev(mapId)][a]?.has(b) ?? false;
+}
+/** Anzeigename eines Gebiets in der Kartenrevision der Partie */
+export function territoryName(mapId: string | undefined, id: string): string {
+  return NAMES[rev(mapId ?? CURRENT_MAP_ID)][id] ?? id;
+}
+export function regionName(mapId: string | undefined, id: string): string {
+  return REGION_NAMES[rev(mapId ?? CURRENT_MAP_ID)][id] ?? id;
+}
+export function isLegacyMap(mapId: string): boolean {
+  return rev(mapId) !== MAP_ID_V3;
 }
 
 export const START_MODS: Record<number, number> = { 2: 30, 3: 35, 4: 30, 5: 25 };

@@ -1,14 +1,14 @@
 // Kampfauflösung gemäß Regelheft (W6/W8, Kommandanten, Stationen, Kartenmodifikatoren)
 import { TDEF } from './content.ts';
 import { roll } from './rng.ts';
-import { findEffects, hasEffect, terr, units, commanderLocation, adj } from './state.ts';
+import { findEffects, hasEffect, terr, units, commanderLocation, adj, nbrs } from './state.ts';
 import type { CommanderType, GameState, Invasion } from './types.ts';
 
 function empAffects(s: GameState, territory: string): boolean {
   return findEffects(s, 'emp').some((e) => {
     const def = TDEF[territory];
     if (def.region === e.region) return true;
-    return def.type === 'water' && def.adjacent.some((n) => TDEF[n].region === e.region);
+    return def.type === 'water' && nbrs(s, territory).some((n) => TDEF[n].region === e.region);
   });
 }
 

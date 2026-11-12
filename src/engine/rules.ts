@@ -51,7 +51,7 @@ export function createGame(opts: { players: NewPlayer[]; seedHex: string; commit
     s.territories[id].devastated = true;
     dev.push(id);
   }
-  log(s, { kind: 'setup', msg: `Verwüstet: ${dev.map(tname).join(', ')}.`, data: { territories: dev } });
+  log(s, { kind: 'setup', msg: `Verwüstet: ${dev.map((id) => tname(id, s)).join(', ')}.`, data: { territories: dev } });
 
   // 2 Spieler: neutrale Armee (RH S. 8)
   if (n === 2) {
@@ -371,7 +371,7 @@ export function executeCard(s: GameState, pid: string, inst: string, tg: Targets
   p.energy -= def.powerUp;
   p.hand = p.hand.filter((c) => c !== inst);
   s.discard.push(inst);
-  const tdesc = tg.territory ? ` → ${tname(tg.territory)}` : tg.player ? ` → ${pname(s, tg.player)}` : '';
+  const tdesc = tg.territory ? ` → ${tname(tg.territory, s)}` : tg.player ? ` → ${pname(s, tg.player)}` : '';
   log(s, { kind: 'card', player: pid, msg: `${p.name} spielt ${def.name}${tdesc}.`, data: { card: def.id, targets: tg } });
   if (def.timing !== 'KAR') {
     const vetoed = runReactions(s, 'KAR', { card: { player: pid, inst, targets: tg } }, pid);
@@ -445,11 +445,11 @@ export function invadeError(s: GameState, pid: string, from: string, to: string)
     connected = adj(s, from, to);
     if (!connected && hasEffect(s, 'currents', (e) => e.owner === pid) && ft === 'water') {
       const col = TDEF[from].region;
-      connected = TDEF[to].region === col || TDEF[to].adjacent.some((n) => TDEF[n].region === col && TDEF[n].type === 'water');
+      connected = TDEF[to].region === col || nbrs(s, to).some((n) => TDEF[n].region === col && TDEF[n].type === 'water');
     }
     if (!connected && ft === 'land' && tt === 'land' && hasEffect(s, 'bridgehead', (e) => e.owner === pid && e.territory === from)) {
-      const waters = new Set(TDEF[from].adjacent.filter((n) => TDEF[n].type === 'water'));
-      connected = TDEF[to].adjacent.some((n) => waters.has(n));
+      const waters = new Set(nbrs(s, from).filter((n) => TDEF[n].type === 'water'));
+      connected = nbrs(s, to).some((n) => waters.has(n));
     }
   }
   if (!connected) return 'Gebiete sind nicht benachbart';
@@ -481,7 +481,7 @@ function doInvade(s: GameState, pid: string, from: string, to: string, move?: Un
     const mv = move ?? defaultMove(s, from, 1, []);
     validateMove(s, from, mv);
     moveUnits(s, from, to, mv);
-    log(s, { kind: 'move', player: pid, msg: `${pname(s, pid)} verlegt per Erdlandung ${mv.mods + mv.commanders.length} Einheit(en) von ${tname(from)} nach ${tname(to)}.`, data: { from, to } });
+    log(s, { kind: 'move', player: pid, msg: `${pname(s, pid)} verlegt per Erdlandung ${mv.mods + mv.commanders.length} Einheit(en) von ${tname(from, s)} nach ${tname(to, s)}.`, data: { from, to } });
     return;
   }
   if (units(b) === 0) {
@@ -492,7 +492,7 @@ function doInvade(s: GameState, pid: string, from: string, to: string, move?: Un
     moveUnits(s, from, to, mv);
     log(s, {
       kind: 'conquest', player: pid,
-      msg: `${pname(s, pid)} besetzt ${tname(to)} von ${tname(from)} aus${prev && prev !== pid ? ` (Station von ${pname(s, prev)})` : ''}.`,
+      msg: `${pname(s, pid)} besetzt ${tname(to, s)} von ${tname(from, s)} aus${prev && prev !== pid ? ` (Station von ${pname(s, prev)})` : ''}.`,
       data: { from, to },
     });
     if (prev && prev !== pid) checkElimination(s, prev);
@@ -504,7 +504,7 @@ function doInvade(s: GameState, pid: string, from: string, to: string, move?: Un
     viaCard: landing.length && TDEF[from].type === 'moon' ? 'earthLanding' : undefined,
   };
   s.invasion = inv;
-  log(s, { kind: 'invasion', player: pid, msg: `${pname(s, pid)} greift ${tname(to)} (${pname(s, b.owner)}) von ${tname(from)} an.`, data: { from, to } });
+  log(s, { kind: 'invasion', player: pid, msg: `${pname(s, pid)} greift ${tname(to, s)} (${pname(s, b.owner)}) von ${tname(from, s)} an.`, data: { from, to } });
   runReactions(s, 'REA', { invasion: inv }, pid);
   checkInvasionState(s);
 }
@@ -557,7 +557,7 @@ function doAttack(s: GameState, pid: string, dice?: number, blitz?: boolean, min
   const defLoss = rolls.reduce((n, r) => n + r.defLoss, 0);
   log(s, {
     kind: 'battle', player: pid,
-    msg: `${tname(inv.from)} → ${tname(inv.to)}: ${rolls.length} Wurf/Würfe, Angreifer −${attLoss}, Verteidiger −${defLoss}` +
+    msg: `${tname(inv.from, s)} → ${tname(inv.to, s)}: ${rolls.length} Wurf/Würfe, Angreifer −${attLoss}, Verteidiger −${defLoss}` +
       (inv.awaitingAdvance ? '. Gebiet erobert!' : '.') + (stopReason ? ` Angriff gestoppt: ${stopReason}.` : ''),
     data: { from: inv.from, to: inv.to, rolls, attLoss, defLoss, conquered: inv.awaitingAdvance, stopReason },
   });
@@ -573,7 +573,7 @@ function applyDefenderLosses(s: GameState, inv: Invasion, n: number): void {
       const refuge = nbrs(s, inv.to).find((x) => s.territories[x].owner === t.owner && x !== inv.from);
       if (refuge) {
         s.territories[refuge].commanders.push(c);
-        log(s, { kind: 'text', msg: `${COMMANDER_NAMES[c]}-Kommandant flieht nach ${tname(refuge)}.` });
+        log(s, { kind: 'text', msg: `${COMMANDER_NAMES[c]}-Kommandant flieht nach ${tname(refuge, s)}.` });
       }
     }
   }
@@ -607,7 +607,7 @@ function doAdvance(s: GameState, pid: string, move: UnitMove): void {
       log(s, { kind: 'text', player: pid, msg: `${pname(s, pid)} erhält den 3-Gebiete-Bonus: +1 Energie${t.bonusCardPending ? ' und eine Karte nach Wahl' : ''}.` });
     }
   }
-  log(s, { kind: 'conquest', player: pid, msg: `${pname(s, pid)} erobert ${tname(inv.to)} und zieht ${total} Einheit(en) nach.`, data: { from: inv.from, to: inv.to, moved: total } });
+  log(s, { kind: 'conquest', player: pid, msg: `${pname(s, pid)} erobert ${tname(inv.to, s)} und zieht ${total} Einheit(en) nach.`, data: { from: inv.from, to: inv.to, moved: total } });
   s.invasion = null;
   if (prev && prev !== pid) {
     checkElimination(s, prev);
@@ -722,7 +722,7 @@ function dispatch(s: GameState, pid: string, cmd: Command): void {
       if (terr(s, cmd.territory).owner !== pid) fail('Nur in eigene Gebiete');
       p.energy -= COSTS.commander;
       terr(s, cmd.territory).commanders.push(cmd.type);
-      log(s, { kind: 'text', player: pid, msg: `${p.name} heuert den ${COMMANDER_NAMES[cmd.type]}-Kommandanten in ${tname(cmd.territory)} an.` });
+      log(s, { kind: 'text', player: pid, msg: `${p.name} heuert den ${COMMANDER_NAMES[cmd.type]}-Kommandanten in ${tname(cmd.territory, s)} an.` });
       return;
     }
     case 'BuildStation': {
@@ -735,7 +735,7 @@ function dispatch(s: GameState, pid: string, cmd: Command): void {
       if (p.energy < COSTS.station) fail(`Station kostet ${COSTS.station} Energie`);
       p.energy -= COSTS.station;
       t.station = true;
-      log(s, { kind: 'text', player: pid, msg: `${p.name} baut eine Raumstation in ${tname(cmd.territory)}.` });
+      log(s, { kind: 'text', player: pid, msg: `${p.name} baut eine Raumstation in ${tname(cmd.territory, s)}.` });
       return;
     }
     case 'BuyCards': {
@@ -797,7 +797,7 @@ function dispatch(s: GameState, pid: string, cmd: Command): void {
       if (inv.awaitingAdvance) fail('Gebiet erobert – bitte nachziehen');
       if (inv.rolls === 0 && maxAttackDice(s, inv) > 0 && !attackBlocker(s, inv)) fail('Vor dem Abbruch muss mindestens einmal gewürfelt werden');
       s.invasion = null;
-      log(s, { kind: 'text', player: pid, msg: `${p.name} bricht die Invasion auf ${tname(inv.to)} ab.` });
+      log(s, { kind: 'text', player: pid, msg: `${p.name} bricht die Invasion auf ${tname(inv.to, s)} ab.` });
       return;
     }
     case 'Deterrence': {
@@ -826,7 +826,7 @@ function dispatch(s: GameState, pid: string, cmd: Command): void {
       moveUnits(s, cmd.from, cmd.to, cmd.move);
       t.invaded = true;
       t.fortifiesLeft--;
-      log(s, { kind: 'move', player: pid, msg: `${p.name} verlegt ${cmd.move.mods + cmd.move.commanders.length} Einheit(en) von ${tname(cmd.from)} nach ${tname(cmd.to)}.`, data: { from: cmd.from, to: cmd.to } });
+      log(s, { kind: 'move', player: pid, msg: `${p.name} verlegt ${cmd.move.mods + cmd.move.commanders.length} Einheit(en) von ${tname(cmd.from, s)} nach ${tname(cmd.to, s)}.`, data: { from: cmd.from, to: cmd.to } });
       if (t.fortifiesLeft === 0) t.step = 'end';
       return;
     }
@@ -886,7 +886,7 @@ function placeExact(s: GameState, pid: string, placements: Record<string, number
   for (const [id, n] of Object.entries(placements ?? {})) {
     if (!Number.isInteger(n) || n < 0) fail('Ungültige Anzahl');
     if (n === 0) continue;
-    if (terr(s, id).owner !== pid) fail(`${tname(id)} gehört dir nicht`);
+    if (terr(s, id).owner !== pid) fail(`${tname(id, s)} gehört dir nicht`);
     sum += n;
   }
   if (sum !== expected) fail(`Genau ${expected} MODs platzieren (aktuell ${sum})`);

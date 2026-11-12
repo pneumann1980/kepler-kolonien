@@ -11,6 +11,8 @@ function blankGame(n = 3): GameState {
   const s = createGame({
     players: Array.from({ length: n }, (_, i) => ({ id: `p${i + 1}`, name: `P${i + 1}`, color: '#000', isBot: true })),
     seedHex: '0123456789abcdef0123456789abcdef', commitment: 'x',
+    // Regelszenarien nutzen die Nachbarschaften der Kartenrevision 2; die Erdkarte hat eigene Tests (tests/earth.test.ts)
+    mapId: 'kepler-colonies-2',
   });
   // Brett leeren für kontrollierte Szenarien
   for (const t of Object.values(s.territories)) Object.assign(t, { owner: null, mods: 0, commanders: [], station: false, devastated: false });

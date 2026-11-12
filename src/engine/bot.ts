@@ -295,7 +295,7 @@ function turnCommand(s: GameState, pid: string, attempt: (c: (Command | null)[])
     const mine = owned(s, pid);
     const strongest = [...borderTerritories(s, pid)].sort((a, b) => units(s.territories[b]) - units(s.territories[a]))[0] ?? mine[0];
     const stationTerr = mine.find((id) => s.territories[id].station);
-    const coastal = mine.find((id) => TDEF[id].adjacent.some((n) => TDEF[n].type === 'water'));
+    const coastal = mine.find((id) => nbrs(s, id).some((n) => TDEF[n].type === 'water'));
     const prio: [CommanderType, string | undefined, number][] = [
       ['LAND', strongest, 0], ['DIPLOMAT', strongest, 0], ['NAVAL', coastal ?? strongest, 1],
       ['SPACE', stationTerr ?? strongest, 1], ['NUCLEAR', strongest, 4],

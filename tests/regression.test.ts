@@ -9,6 +9,8 @@ function game(n = 3, seed = '0123456789abcdef0123456789abcdef'): GameState {
   const s = createGame({
     players: Array.from({ length: n }, (_, i) => ({ id: `p${i + 1}`, name: `P${i + 1}`, color: '#000' })),
     seedHex: seed, commitment: 'x',
+    // Szenarien mit festen Gebiets-IDs nutzen den Graphen der Kartenrevision 2 (Erdkarte: tests/earth.test.ts)
+    mapId: 'kepler-colonies-2',
   });
   for (const t of Object.values(s.territories)) Object.assign(t, { owner: null, mods: 0, commanders: [], station: false, devastated: false });
   for (const p of s.players) p.energy = 20;
@@ -248,13 +250,19 @@ test('3.6 Laufzeitvalidierung öffentlicher Befehle', () => {
 });
 
 // ---------------------------------------------------------------- Karte / Ost-West-Landroute
-test('Ost-West-Landroute nur für neue Partien; alte Partien behalten ihre Topologie', () => {
+test('Ost-West-Landroute je Kartenrevision; alte Partien behalten ihre Topologie', () => {
   const s = game();
   put(s, 'BOR-3', 'p1', 5); put(s, 'VEL-5', 'p2', 2); put(s, 'VEL-1', 'p3', 3);
-  assert.equal(invadeError(s, 'p1', 'BOR-3', 'VEL-5'), null, 'neue Partie: Landroute ohne Marine-Kdt');
+  assert.equal(invadeError(s, 'p1', 'BOR-3', 'VEL-5'), null, 'Revision 2: Landroute ohne Marine-Kdt');
   const old = structuredClone(s);
   old.mapId = 'kepler-colonies';
   assert.match(String(invadeError(old, 'p1', 'BOR-3', 'VEL-5')), /benachbart/);
+  // Revision 3 (Erde): Beringstraße Beringia <-> Fernost, ohne Marine-Kdt; die Rev.-2-Route existiert dort nicht
+  const earth = structuredClone(s);
+  earth.mapId = 'kepler-earth-3';
+  assert.match(String(invadeError(earth, 'p1', 'BOR-3', 'VEL-5')), /benachbart/);
+  put(earth, 'BOR-1', 'p1', 5); put(earth, 'KAS-4', 'p2', 2);
+  assert.equal(invadeError(earth, 'p1', 'BOR-1', 'KAS-4'), null);
 });
 
 test('Score Chart: 45 Gebiete → 14 MODs und 14 Energie', () => {
@@ -301,6 +309,6 @@ test('Alter Spielstand (c7e5bfb) lädt, läuft bis zum Ende und erhält keine ne
   }
   assert.equal(s.phase, 'gameOver');
   const fresh = createGame({ players: [{ id: 'a', name: 'A', color: '#000' }, { id: 'b', name: 'B', color: '#111' }], seedHex: 'ab', commitment: 'x' });
-  assert.equal(fresh.mapId, 'kepler-colonies-2');
-  assert.ok(nbrs(fresh, 'BOR-3').includes('VEL-5') && nbrs(fresh, 'VEL-5').includes('BOR-3'));
+  assert.equal(fresh.mapId, 'kepler-earth-3');
+  assert.ok(nbrs(fresh, 'BOR-1').includes('KAS-4') && nbrs(fresh, 'KAS-4').includes('BOR-1'));
 });

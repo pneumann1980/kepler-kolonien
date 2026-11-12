@@ -1,6 +1,6 @@
 // Zustands-Hilfsfunktionen und gemeinsame Mutationen (von Regeln und Karten genutzt)
 import {
-  TDEF, RDEF, REGION_MEMBERS, TERRITORY_IDS, LANDING_SITES, MAX_STATIONS, NEUTRAL_ID, baseIncome, neighborsFor, adjacentFor,
+  TDEF, RDEF, REGION_MEMBERS, TERRITORY_IDS, LANDING_SITES, MAX_STATIONS, NEUTRAL_ID, baseIncome, neighborsFor, adjacentFor, territoryName,
 } from './content.ts';
 import type {
   GameState, Player, TerritoryState, CommanderType, Effect, EffectKind, LogEntry, UnitMove,
@@ -30,8 +30,9 @@ export function pname(s: GameState, id: string | null | undefined): string {
   return s.players.find((x) => x.id === id)?.name ?? id;
 }
 
-export function tname(id: string): string {
-  return TDEF[id]?.name ?? id;
+/** Gebietsname in der Kartenrevision der Partie */
+export function tname(id: string, s?: Pick<GameState, 'mapId'>): string {
+  return territoryName(s?.mapId, id);
 }
 
 export function terr(s: GameState, id: string): TerritoryState {
@@ -221,9 +222,9 @@ export function takeOver(s: GameState, id: string, newOwner: string): void {
   if (t.station && prev !== newOwner) {
     if (stationCount(s, newOwner) >= MAX_STATIONS) {
       t.station = false;
-      log(s, { kind: 'text', msg: `Station in ${tname(id)} zerstört (Limit ${MAX_STATIONS} erreicht).` });
+      log(s, { kind: 'text', msg: `Station in ${tname(id, s)} zerstört (Limit ${MAX_STATIONS} erreicht).` });
     } else {
-      log(s, { kind: 'text', msg: `${pname(s, newOwner)} übernimmt die Station in ${tname(id)}.` });
+      log(s, { kind: 'text', msg: `${pname(s, newOwner)} übernimmt die Station in ${tname(id, s)}.` });
     }
   }
   t.owner = newOwner;

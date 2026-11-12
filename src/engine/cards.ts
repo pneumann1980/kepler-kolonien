@@ -1,5 +1,5 @@
 // Kommandokarten (eigene Inhalte, siehe docs/KARTEN.md): 5 Decks à 20 Karten, 67 Typen
-import { TDEF, RDEF, REGION_MEMBERS, IDS_BY_TYPE, MAX_STATIONS, COSTS, isCoastal } from './content.ts';
+import { TDEF, RDEF, REGION_MEMBERS, IDS_BY_TYPE, MAX_STATIONS, COSTS, isCoastalFor } from './content.ts';
 import { roll, randInt } from './rng.ts';
 import {
   fail, player, pname, tname, terr, units, owned, commanderLocation, commanderInPlay, stationCount,
@@ -88,11 +88,11 @@ function moveCommander(s: GameState, pid: string, type: CommanderType, to: strin
   t.commanders = t.commanders.filter((c) => c !== type);
   terr(s, to).commanders.push(type);
 }
-function waterColoniesTouching(id: string): Set<string> {
+function waterColoniesTouching(s: GameState, id: string): Set<string> {
   const res = new Set<string>();
   const d = TDEF[id];
   if (d.type === 'water') res.add(d.region);
-  for (const n of d.adjacent) if (TDEF[n].type === 'water') res.add(TDEF[n].region);
+  for (const n of nbrs(s, id)) if (TDEF[n].type === 'water') res.add(TDEF[n].region);
   return res;
 }
 function damage(s: GameState, id: string, n: number, keepOne = false): number {
@@ -175,7 +175,7 @@ export const CARD_DEFS: CardDef[] = [
   {
     id: 'LAN-08', deck: 'LAND', name: 'Brückenkopf', copies: 1, powerUp: 1, timing: 'VOR', target: 'ownCoastal', value: 2,
     text: 'Bis Zugende grenzt ein eigenes Küstengebiet an alle Landgebiete am selben Wassergebiet (ohne Marine-Kdt).',
-    targets: (s, pid) => owned(s, pid).filter(isCoastal),
+    targets: (s, pid) => owned(s, pid).filter((id) => isCoastalFor(s.mapId, id)),
     apply: (s, pid, tg) => { addEffect(s, { kind: 'bridgehead', owner: pid, territory: tg.territory, expires: thisTurnEnd(pid) }); },
   },
   {
@@ -247,10 +247,10 @@ export const CARD_DEFS: CardDef[] = [
   {
     id: 'NAV-05', deck: 'NAVAL', name: 'Konvoi', copies: 2, powerUp: 1, timing: 'VOR', target: 'move', moveMax: 5, value: 2,
     text: 'Bewege bis zu 5 Einheiten zwischen zwei eigenen Gebieten an derselben Wasserkolonie.',
-    targets: (s, pid) => owned(s, pid).filter((id) => waterColoniesTouching(id).size > 0),
+    targets: (s, pid) => owned(s, pid).filter((id) => waterColoniesTouching(s, id).size > 0),
     apply: (s, pid, tg) => {
       const a = tg.territory!, b = tg.territory2!;
-      const ca = waterColoniesTouching(a), cb = waterColoniesTouching(b);
+      const ca = waterColoniesTouching(s, a), cb = waterColoniesTouching(s, b);
       if (![...ca].some((c) => cb.has(c))) fail('Beide Gebiete müssen an dieselbe Wasserkolonie grenzen');
       if (s.territories[b].owner !== pid) fail('Ziel muss dir gehören');
       doMove(s, a, b, tg.count ?? 0, 5);
@@ -268,10 +268,10 @@ export const CARD_DEFS: CardDef[] = [
     id: 'NAV-07', deck: 'NAVAL', name: 'Torpedo-Salve', copies: 1, powerUp: 2, timing: 'VOR', target: 'enemyTerritory', value: 1,
     text: 'Gegnerisches Küstengebiet neben eigenem Wassergebiet: 2 W6, je 5–6 → −1 Einheit. Keine Invasion.',
     targets: (s, pid) => enemyWithUnits(s, pid).filter((id) => TDEF[id].type === 'land' &&
-      TDEF[id].adjacent.some((n) => TDEF[n].type === 'water' && s.territories[n].owner === pid)),
+      nbrs(s, id).some((n) => TDEF[n].type === 'water' && s.territories[n].owner === pid)),
     apply: (s, pid, tg) => {
       const h = hits(s, 2, 5); const r = damage(s, tg.territory!, h);
-      log(s, { kind: 'text', msg: `Torpedo-Salve auf ${tname(tg.territory!)}: ${r} Verluste.`, player: pid });
+      log(s, { kind: 'text', msg: `Torpedo-Salve auf ${tname(tg.territory!, s)}: ${r} Verluste.`, player: pid });
     },
   },
   {
@@ -283,7 +283,7 @@ export const CARD_DEFS: CardDef[] = [
   {
     id: 'NAV-09', deck: 'NAVAL', name: 'Hafenausbau', copies: 1, powerUp: 2, timing: 'VOR', target: 'ownCoastal', value: 4,
     text: 'Hafen in ein eigenes Küstengebiet: beim Einkommen +1 MOD dort, solange du es kontrollierst.',
-    targets: (s, pid) => owned(s, pid).filter((id) => isCoastal(id) && !findEffects(s, 'harbor', (e) => e.territory === id).length),
+    targets: (s, pid) => owned(s, pid).filter((id) => isCoastalFor(s.mapId, id) && !findEffects(s, 'harbor', (e) => e.territory === id).length),
     apply: (s, pid, tg) => { addEffect(s, { kind: 'harbor', owner: pid, territory: tg.territory, expires: 'permanent' }); },
   },
   {
@@ -372,7 +372,7 @@ export const CARD_DEFS: CardDef[] = [
     targets: (s, pid) => enemyWithUnits(s, pid).filter((id) => nbrs(s, id).some((n) => s.territories[n].owner === pid && s.territories[n].station)),
     apply: (s, pid, tg) => {
       const r = damage(s, tg.territory!, hits(s, 3, 5));
-      log(s, { kind: 'text', msg: `Orbitales Bombardement auf ${tname(tg.territory!)}: ${r} Verluste.`, player: pid });
+      log(s, { kind: 'text', msg: `Orbitales Bombardement auf ${tname(tg.territory!, s)}: ${r} Verluste.`, player: pid });
     },
   },
   {
@@ -405,9 +405,9 @@ export const CARD_DEFS: CardDef[] = [
       const deck = s.territoryDecks.land;
       if (!deck.length) { log(s, { kind: 'text', msg: 'Erdlandung: Landkarten-Deck leer.', player: pid }); return; }
       const target = deck.shift()!;
-      if (s.territories[target].devastated) { log(s, { kind: 'text', msg: `Erdlandung: ${tname(target)} ist verwüstet – ohne Wirkung.`, player: pid }); return; }
+      if (s.territories[target].devastated) { log(s, { kind: 'text', msg: `Erdlandung: ${tname(target, s)} ist verwüstet – ohne Wirkung.`, player: pid }); return; }
       addEffect(s, { kind: 'earthLanding', owner: pid, territory: target, expires: thisTurnEnd(pid) });
-      log(s, { kind: 'text', msg: `Erdlandung: Ziel ist ${tname(target)}.`, player: pid, data: { territory: target } });
+      log(s, { kind: 'text', msg: `Erdlandung: Ziel ist ${tname(target, s)}.`, player: pid, data: { territory: target } });
     },
   },
   {
@@ -429,7 +429,7 @@ export const CARD_DEFS: CardDef[] = [
     targets: inRange(2),
     apply: (s, pid, tg) => {
       const r = damage(s, tg.territory!, hits(s, 3, 5));
-      log(s, { kind: 'text', msg: `Präzisionsschlag auf ${tname(tg.territory!)}: ${r} Verluste.`, player: pid });
+      log(s, { kind: 'text', msg: `Präzisionsschlag auf ${tname(tg.territory!, s)}: ${r} Verluste.`, player: pid });
     },
   },
   {
@@ -442,7 +442,7 @@ export const CARD_DEFS: CardDef[] = [
       const prev = t.owner;
       const r = damage(s, id, Math.ceil(units(t) / 2));
       const w = roll(s.rng, 6);
-      let msg = `Flächenbombardement auf ${tname(id)}: ${r} Verluste.`;
+      let msg = `Flächenbombardement auf ${tname(id, s)}: ${r} Verluste.`;
       if (w === 1) {
         t.mods = 0; t.commanders = []; t.station = false; t.owner = null; t.devastated = true;
         onOwnerChange(s, id);
@@ -517,7 +517,7 @@ export const CARD_DEFS: CardDef[] = [
       const id = tg.territory!;
       damage(s, id, 3, true);
       for (const n of nbrs(s, id)) if (s.territories[n].owner) damage(s, n, 1, true);
-      log(s, { kind: 'text', msg: `Kettenreaktion in ${tname(id)}.`, player: pid, data: { territory: id } });
+      log(s, { kind: 'text', msg: `Kettenreaktion in ${tname(id, s)}.`, player: pid, data: { territory: id } });
     },
   },
   {
@@ -590,7 +590,7 @@ export const CARD_DEFS: CardDef[] = [
       const prev = t.owner!;
       t.owner = pid;
       onOwnerChange(s, tg.territory!);
-      log(s, { kind: 'conquest', msg: `${tname(tg.territory!)} läuft zu ${pname(s, pid)} über.`, player: pid, data: { territory: tg.territory } });
+      log(s, { kind: 'conquest', msg: `${tname(tg.territory!, s)} läuft zu ${pname(s, pid)} über.`, player: pid, data: { territory: tg.territory } });
       checkElimination(s, prev);
     },
   },
@@ -636,12 +636,12 @@ export const CARD_DEFS: CardDef[] = [
     }),
     apply: (s, pid, tg) => {
       const w = roll(s.rng, 6);
-      if (w <= 2) { log(s, { kind: 'text', msg: `Sabotage in ${tname(tg.territory!)} misslingt (${w}).`, player: pid }); return; }
+      if (w <= 2) { log(s, { kind: 'text', msg: `Sabotage in ${tname(tg.territory!, s)} misslingt (${w}).`, player: pid }); return; }
       const t = terr(s, tg.territory!);
       t.station = false;
       const prev = t.owner!;
       if (units(t) === 0) { t.owner = null; onOwnerChange(s, tg.territory!); checkElimination(s, prev); }
-      log(s, { kind: 'text', msg: `Sabotage: Station in ${tname(tg.territory!)} zerstört (${w}).`, player: pid });
+      log(s, { kind: 'text', msg: `Sabotage: Station in ${tname(tg.territory!, s)} zerstört (${w}).`, player: pid });
     },
   },
   {
