@@ -1,5 +1,6 @@
 import type { ComponentChildren } from 'preact';
 import { COMMANDER_NAMES, units } from '../../engine/index.ts';
+import { Ico } from './icons.tsx';
 import type { CommanderType, TerritoryState, UnitMove } from '../../engine/index.ts';
 
 export function Btn(props: { onClick?: () => void; kind?: 'primary' | 'danger' | 'ghost' | 'ok' | 'warn'; disabled?: boolean; children: ComponentChildren; small?: boolean; title?: string; type?: 'button' | 'submit' }) {
@@ -53,7 +54,7 @@ export function UnitPicker({ t, value, onChange, min, mustCmd = [], leave = 1 }:
                   if (next.length + value.mods > maxMove) return;
                   onChange({ ...value, commanders: next });
                 }}>
-                {COMMANDER_NAMES[c]}{locked ? ' (Pflicht)' : ''}
+                <Ico name={c} size={15} class="chipico" /> {COMMANDER_NAMES[c]}{locked ? ' (Pflicht)' : ''}
               </button>
             );
           })}

@@ -11,7 +11,9 @@ import { sendCommand, api, type GameView, type Live, type Me } from '../api.ts';
 import { Board, routesFor } from './Board.tsx';
 import { tn, rn, setNameMap } from '../names.ts';
 import { Btn, Dot, Stepper, UnitPicker, timeLeft } from './widgets.tsx';
-import { Hand, cardStatus } from './Hand.tsx';
+import { Hand, HandTray, cardStatus } from './Hand.tsx';
+import { Ico, CmdBadge } from './icons.tsx';
+import { standings } from './standings.ts';
 import { Players } from './Players.tsx';
 import { LogView } from './LogView.tsx';
 
@@ -45,6 +47,8 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('map');
+  const [panelOpen, setPanelOpen] = useState(() => window.innerWidth >= 700);
+  const [noRotate, setNoRotate] = useState(() => { try { return sessionStorage.getItem('kk-norotate') === '1'; } catch { return false; } });
   const [board, setBoard] = useState<'planet' | 'moon'>('planet');
   const [sel, setSel] = useState<string | null>(null);
   const [target, setTarget] = useState<string | null>(null);
@@ -103,6 +107,13 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
     }
     try { localStorage.setItem(k, String(latest)); } catch { /* */ }
   }, [view?.version]);
+
+  // Querformat bevorzugen (Sperre funktioniert nur in installierter App bzw. im Vollbild; sonst zeigt die Oberfläche einen Hinweis)
+  useEffect(() => {
+    const o = (screen as unknown as { orientation?: { lock?: (m: string) => Promise<void>; unlock?: () => void } }).orientation;
+    o?.lock?.('landscape').catch(() => { /* nicht erlaubt */ });
+    return () => { try { o?.unlock?.(); } catch { /* */ } };
+  }, []);
 
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(null), 3500); return () => clearTimeout(t); } }, [toast]);
 
@@ -317,7 +328,7 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
             <div class="placelist">
               {(['land', 'diplomat', 'station'] as const).map((k) => (
                 <span key={k} class={`chip ${quick.stage === k ? 'on' : ''}`} onClick={() => setQuick({ ...quick, stage: k })}>
-                  {k === 'land' ? 'Land-Kdt' : k === 'diplomat' ? 'Diplomat' : 'Station'}: {quick[k] ? tn(quick[k]!) : '–'}
+                  <Ico name={k === 'land' ? 'LAND' : k === 'diplomat' ? 'DIPLOMAT' : 'station'} size={15} /> {k === 'land' ? 'Land-Kdt' : k === 'diplomat' ? 'Diplomat' : 'Station'}: {quick[k] ? tn(quick[k]!) : '–'}
                 </span>
               ))}
             </div>
@@ -405,14 +416,14 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
             const at = commanderLocation(s, myId!, c);
             return (
               <div key={c} class={`cmdcard ${at ? 'active' : ''}`}>
-                <b>{COMMANDER_NAMES[c]}</b>
+                <b><CmdBadge type={c} size={24} /> {COMMANDER_NAMES[c]}</b>
                 <span>{at ? tn(at) : 'nicht im Spiel'}</span>
                 {!at && <Btn small disabled={me.energy < COSTS.commander} onClick={() => { setPending({ kind: 'hire', type: c }); setToast('Tippe auf ein eigenes Gebiet'); }}>Anheuern</Btn>}
               </div>
             );
           })}
           <div class="cmdcard">
-            <b>Raumstation</b>
+            <b><span class="cmdbadge stn"><Ico name="station" size={15} /></span> Raumstation</b>
             <span>{stationCount(s, myId!)} / {MAX_STATIONS}</span>
             <Btn small disabled={me.energy < COSTS.station || stationCount(s, myId!) >= MAX_STATIONS} onClick={() => { setPending({ kind: 'station' }); setToast('Tippe auf ein eigenes Landgebiet'); }}>Bauen</Btn>
           </div>
@@ -599,38 +610,79 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
     ? <><Dot color={players[turn.player]?.color} /> {players[turn.player]?.name} · {phaseLabel(view)}</>
     : <>{phaseLabel(view)}</>;
 
+  const ranking = standings(view);
+  const meRow = ranking.find((r) => r.me);
+  const goTab = (k: Tab) => { if (tab === k && k !== 'map') { setPanelOpen(!panelOpen); return; } setTab(k); setPanelOpen(true); };
+  const fullscreen = () => {
+    const d = document as Document & { webkitFullscreenElement?: Element };
+    const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> };
+    if (d.fullscreenElement || d.webkitFullscreenElement) { void document.exitFullscreen?.(); return; }
+    const req = el.requestFullscreen?.() ?? el.webkitRequestFullscreen?.();
+    Promise.resolve(req).then(() => (screen as unknown as { orientation?: { lock?: (m: string) => Promise<void> } }).orientation?.lock?.('landscape')).catch(() => { /* z. B. iPhone */ });
+  };
+
   return (
-    <div class="game">
+    <div class={`game ${noRotate ? 'norotate' : ''}`}>
       <header class="topbar">
-        <button class="back" onClick={() => navigate('/')} aria-label="Zur Lobby">‹</button>
+        <button class="iconbtn" onClick={() => navigate('/')} aria-label="Zur Lobby" title="Zur Lobby"><Ico name="home" size={20} /></button>
         <div class="tb-main">
           <div class="tb-sub">{view.gameName} · Jahr {Math.max(1, Math.min(view.year, view.config.years))}/{view.config.years}</div>
           <div class="tb-title">{statusLine}</div>
         </div>
-        {meP && (
+        <button class="standings" onClick={() => goTab('players')} aria-label="Rangliste" title="Zwischenstand: Gebiete + Regionsboni (ohne Wertungskarten)">
+          {ranking.map((r) => (
+            <span key={r.id} class={`st ${r.active ? 'active' : ''} ${r.me ? 'me' : ''} ${r.eliminated ? 'out' : ''}`} style={{ '--pc': r.color } as never}>
+              <i class="rk">{r.eliminated ? '✕' : r.rank}</i>
+              <i class="pdot" />
+              <span class="stname">{r.name}</span>
+              <b class="stpts">{r.total}</b>
+            </span>
+          ))}
+        </button>
+        {meRow && meP && (
           <div class="res">
-            <span class="chip"><b class="energy">⚡ {meP.energy}</b></span>
-            <span class="chip">🂠 {meP.hand.length}</span>
+            <span class="stat energy" title="Energie"><Ico name="bolt" size={16} /> {meP.energy}</span>
+            <span class="stat" title="Handkarten"><Ico name="cards" size={16} /> {meP.hand.length}</span>
+            <span class="stat" title="Gebiete"><Ico name="territory" size={16} /> {meRow.territories}</span>
+            <span class="stat" title="Einheiten"><Ico name="units" size={16} /> {meRow.units}</span>
+            <span class="stat" title="Stationen"><Ico name="station" size={16} /> {meRow.stations}</span>
           </div>
         )}
         <span class={`conn ${live.connected ? 'on' : 'off'}`} title={live.connected ? 'Live verbunden' : 'Verbindung wird aufgebaut'} />
       </header>
 
-      <div class={`content tab-${tab}`}>
-        <section class="mapwrap">
-          <div class="boardtoggle">
-            <button class={board === 'planet' ? 'on' : ''} onClick={() => setBoard('planet')}>{isLegacyMap(view.mapId) ? 'Planet' : 'Erde'}</button>
-            <button class={board === 'moon' ? 'on' : ''} onClick={() => setBoard('moon')}>Mond{otherBoardTargets && board === 'planet' ? ' •' : ''}</button>
-          </div>
-          <Board view={view} board={board} selected={target ?? sel} focus={target ?? sel} targets={targets} overlay={overlay} flash={flash} onTap={onTap} />
-          {sel && !inv && tab === 'map' && TDEF[target ?? sel].board === board && <div class="selinfo"><TerritoryInfo id={target ?? sel} view={view} players={players} compact /></div>}
-        </section>
-        <section class="side">
-          {tab === 'map' && <div class="panel">{panel}</div>}
-          {tab === 'hand' && <Hand view={view} s={s} me={meP} onPlay={startCard} onSetting={(cmd) => send(cmd)} />}
-          {tab === 'players' && <Players view={view} />}
-          {tab === 'log' && <LogView view={view} />}
-        </section>
+      <div class="content">
+        <div class="stage">
+          <section class="mapwrap">
+            <div class="boardtoggle">
+              <button class={board === 'planet' ? 'on' : ''} onClick={() => setBoard('planet')}><Ico name="earth" size={16} /> {isLegacyMap(view.mapId) ? 'Planet' : 'Erde'}</button>
+              <button class={board === 'moon' ? 'on' : ''} onClick={() => setBoard('moon')}><Ico name="moon" size={16} /> Mond{otherBoardTargets && board === 'planet' ? ' •' : ''}</button>
+            </div>
+            <Board view={view} board={board} selected={target ?? sel} focus={target ?? sel} targets={targets} overlay={overlay} flash={flash} onTap={onTap} />
+            <HandTray view={view} s={s} me={meP} onPlay={startCard} />
+            {sel && !inv && TDEF[target ?? sel].board === board && <div class="selinfo"><TerritoryInfo id={target ?? sel} view={view} players={players} compact /></div>}
+          </section>
+        </div>
+        {panelOpen && (
+          <section class="side">
+            {tab === 'map' && <div class="panel">{panel}</div>}
+            {tab === 'hand' && <Hand view={view} s={s} me={meP} onPlay={startCard} onSetting={(cmd) => send(cmd)} />}
+            {tab === 'players' && <Players view={view} />}
+            {tab === 'log' && <LogView view={view} />}
+          </section>
+        )}
+        <nav class="rail" aria-label="Menü">
+          {(['map', 'hand', 'players', 'log'] as Tab[]).map((k) => (
+            <button key={k} class={tab === k && panelOpen ? 'on' : ''} onClick={() => goTab(k)} aria-label={{ map: 'Karte', hand: 'Hand', players: 'Spieler', log: 'Protokoll' }[k]}>
+              <Ico name={{ map: 'sword', hand: 'cards', players: 'rank', log: 'log' }[k]} size={24} />
+              <span>{{ map: 'Aktion', hand: 'Hand', players: 'Rang', log: 'Protokoll' }[k]}</span>
+              {k === 'map' && myAction && <span class="badge-dot" />}
+            </button>
+          ))}
+          <span class="rail-gap" />
+          <button onClick={() => setPanelOpen(!panelOpen)} class={panelOpen ? '' : 'on'} aria-label={panelOpen ? 'Seitenleiste ausblenden' : 'Seitenleiste einblenden'}><Ico name="panel" size={22} /><span>{panelOpen ? 'Karte groß' : 'Menü'}</span></button>
+          <button onClick={fullscreen} aria-label="Vollbild"><Ico name="full" size={22} /><span>Vollbild</span></button>
+        </nav>
       </div>
 
       {recap && (
@@ -642,15 +694,12 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
       )}
       {toast && <div class="toast" onClick={() => setToast(null)}>{toast}</div>}
 
-      <nav class="tabbar">
-        {(['map', 'hand', 'players', 'log'] as Tab[]).map((k) => (
-          <button key={k} class={tab === k ? 'on' : ''} onClick={() => setTab(k)}>
-            <span class="ico">{{ map: '🗺', hand: '🂠', players: '👥', log: '📜' }[k]}</span>
-            {{ map: 'Karte', hand: 'Hand', players: 'Spieler', log: 'Protokoll' }[k]}
-            {k === 'map' && myAction && <span class="badge-dot" />}
-          </button>
-        ))}
-      </nav>
+      <div class="rotate-overlay">
+        <Ico name="rotate" size={72} class="rot-ico" />
+        <b>Bitte Gerät drehen</b>
+        <span class="hint">Kepler-Kolonien wird im Querformat gespielt.</span>
+        <button type="button" class="linkbtn" onClick={() => { try { sessionStorage.setItem('kk-norotate', '1'); } catch { /* */ } setNoRotate(true); }}>Trotzdem im Hochformat anzeigen</button>
+      </div>
     </div>
   );
 }
@@ -688,7 +737,7 @@ function TerritoryInfo({ id, view, players, compact }: { id: string; view: GameV
     <div class={`tinfo ${compact ? 'compact' : ''}`}>
       <b>{tn(id)}</b> <span class="hint">{def.type === 'land' ? 'Land' : def.type === 'water' ? 'Unterwasserfeld' : 'Mond'}{def.landingSite ? ' · Landeplatz' : ''}</span>
       <div>
-        {t.devastated ? 'Verwüstet' : owner ? <><Dot color={owner.color} /> {owner.name}: {t.mods} MODs{t.commanders.length ? ` · ${t.commanders.map((c) => COMMANDER_NAMES[c]).join(', ')}` : ''}{t.station ? ' · Station' : ''}</> : 'Unbesetzt'}
+        {t.devastated ? 'Verwüstet' : owner ? <><Dot color={owner.color} /> {owner.name}: {t.mods} MODs{t.commanders.map((c) => <CmdBadge key={c} type={c} size={20} title={COMMANDER_NAMES[c]} />)}{t.station && <span class="cmdbadge stn" title="Station"><Ico name="station" size={13} /></span>}</> : 'Unbesetzt'}
       </div>
       <div class="regline">
         <span class="regname">{rn(reg.id)} +{reg.bonus}</span>

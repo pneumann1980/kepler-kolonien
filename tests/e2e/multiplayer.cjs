@@ -31,7 +31,7 @@ async function visibleBadge(page, id) {
   const n = await loc.count();
   for (let i = 0; i < n; i++) {
     const bb = await loc.nth(i).boundingBox({ timeout: 500 }).catch(() => null);
-    if (bb && bb.x > box.x + 10 && bb.x < box.x + box.width - 60 && bb.y > box.y + 45 && bb.y < box.y + box.height - 50) return { loc: loc.nth(i), bb };
+    if (bb && bb.x > box.x + 10 && bb.x < box.x + box.width - 60 && bb.y > box.y + 45 && bb.y < box.y + box.height - 95) return { loc: loc.nth(i), bb };
   }
   return null;
 }
@@ -66,8 +66,8 @@ async function waitFor(page, id, pred, label, ms = 60000) {
 
 (async () => {
   const browser = await chromium.launch();
-  const a = await player(browser, 'iPhone 13', 'Anna' + sfx);
-  const b = await player(browser, 'Pixel 7', 'Ben' + sfx);
+  const a = await player(browser, 'iPhone 13 landscape', 'Anna' + sfx);
+  const b = await player(browser, 'Pixel 7 landscape', 'Ben' + sfx);
   await a.getByRole('button', { name: '+ Neue Partie' }).click();
   await a.getByLabel('Name').fill('Duell ' + sfx);
   await a.locator('input[type=range]').nth(0).fill('2');

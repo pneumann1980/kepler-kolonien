@@ -62,6 +62,7 @@ Alle Mitspieler sollten immer dieselbe Adresse (`https://kepler.deine-domain.de`
   - Laufende Partien anderer Spieler kann man als Zuschauer verfolgen.
 - **Partie:**
   - **Karte:** Erde (Küsten: Natural Earth) und Mond (NASA-LROC-Mosaik) mit eigener Gebietsaufteilung. Tippen wählt Gebiete, zwei Finger zoomen, Wischen verschiebt die Karte. Sie ist an Ost- und Westrand verbunden (Beringstraße); per Umschalter geht es auf den Mond. Ältere Partien behalten ihre ursprüngliche Karte.
+  - **Querformat-Oberfläche:** Menü rechts, Rangliste und eigene Statistik oben, Handkarten als Leiste unten, Piktogramme für Kommandanten, Stationen und Atom (siehe `docs/STATUS.md`).
   - **Aktionsleiste:** führt durch alle Phasen. Die Zugfolge ist Gebot → Platzwahl → Einsetzen → Anheuern/Bauen → Karten kaufen → Karten spielen und Invasionen → Truppenbewegung → Zugende.
   - **Hand:** Karten spielen und Reaktionsregeln ein- oder ausschalten.
   - **Spieler:** öffentliche Informationen aller Spieler.

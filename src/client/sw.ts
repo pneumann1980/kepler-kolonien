@@ -2,7 +2,7 @@
 // Service Worker: App-Shell-Cache (offline startbar) und Web-Push-Benachrichtigungen
 declare const self: ServiceWorkerGlobalScope;
 declare const __ASSETS__: string[];
-const CACHE = 'kk-shell-v1-' + (typeof __ASSETS__ !== 'undefined' ? __ASSETS__.join('|').length : 0);
+const CACHE = 'kk-shell-v2-' + (typeof __ASSETS__ !== 'undefined' ? __ASSETS__.join('|').length : 0);
 const SHELL = ['/', '/manifest.webmanifest', '/icons/icon.svg', ...(typeof __ASSETS__ !== 'undefined' ? __ASSETS__ : [])];
 
 self.addEventListener('install', (e) => {

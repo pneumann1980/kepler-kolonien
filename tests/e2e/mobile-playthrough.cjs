@@ -9,7 +9,7 @@ fs.mkdirSync(SHOTS, { recursive: true });
 
 (async () => {
   const browser = await chromium.launch();
-  const ctx = await browser.newContext({ ...devices['iPhone 13'] });
+  const ctx = await browser.newContext({ ...devices['iPhone 13 landscape'] });
   const page = await ctx.newPage();
   page.on('dialog', (d) => d.accept());
   page.on('pageerror', (e) => { console.error('PAGEERROR', e.message); process.exitCode = 1; });
@@ -21,7 +21,7 @@ fs.mkdirSync(SHOTS, { recursive: true });
     const n = await loc.count();
     for (let i = 0; i < n; i++) {
       const bb = await loc.nth(i).boundingBox({ timeout: 500 }).catch(() => null);
-      if (bb && bb.x > box.x + 10 && bb.x < box.x + box.width - 60 && bb.y > box.y + 45 && bb.y < box.y + box.height - 50) return bb;
+      if (bb && bb.x > box.x + 10 && bb.x < box.x + box.width - 60 && bb.y > box.y + 45 && bb.y < box.y + box.height - 95) return bb;
     }
     return null;
   };

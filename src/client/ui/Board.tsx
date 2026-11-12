@@ -4,9 +4,10 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import geometry from '../../../content/board/geometry.json' with { type: 'json' };
 import legacyGeometry from '../../../content/board/legacy/kepler-colonies-geometry.json' with { type: 'json' };
-import { TDEF, RDEF, REGION_MEMBERS, COMMANDER_SHORT, MAP_ID_V2, isLegacyMap, units } from '../../engine/index.ts';
+import { TDEF, RDEF, REGION_MEMBERS, MAP_ID_V2, isLegacyMap, units } from '../../engine/index.ts';
 import type { GameView } from '../api.ts';
 import { tn, rn } from '../names.ts';
+import { IcoG, Ico, CMD_COLOR } from './icons.tsx';
 
 type Pt = [number, number];
 export type Route = { a: string; b: string; kind: 'strait' | 'coast' | 'water' | 'colony'; pts: Pt[]; pts2?: Pt[]; wrap?: boolean; rev?: number; label?: string };
@@ -49,7 +50,7 @@ export interface BoardProps {
   onTap?: (id: string) => void;
 }
 
-type Cam = { cx: number; cy: number; sc: number };
+type Cam = { cx: number; cy: number; sc: number; fitted?: boolean };
 const camMemory: Record<string, Cam> = {}; // Kamera je Partie/Brett bleibt bei neuen Serverständen erhalten
 
 function shade(hex: string, f: number): string {
@@ -70,7 +71,10 @@ export function Board({ view, board, selected, focus, targets, overlay, flash, o
   const [size, setSize] = useState({ w: 360, h: 300 });
   const memKey = `${view.gameId}:${board}`;
   const [cam, setCamState] = useState<Cam | null>(camMemory[memKey] ?? null);
-  const setCam = (c: Cam) => { camMemory[memKey] = c; setCamState(c); };
+  const memKeyRef = useRef(memKey);
+  memKeyRef.current = memKey;
+  const setCam = (c: Cam) => { const f = { ...c, fitted: Math.abs(c.sc - fitScale) < fitScale * 0.02 }; camMemory[memKey] = f; setCamState(f); };
+  const lastTap = useRef<{ t: number; x: number; y: number } | null>(null);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gesture = useRef<{ sx: number; sy: number; moved: boolean; cam0: Cam; dist?: number; mid?: { x: number; y: number } } | null>(null);
 
@@ -79,14 +83,30 @@ export function Board({ view, board, selected, focus, targets, overlay, flash, o
     if (!el) return;
     const ro = new ResizeObserver(() => {
       const r = el.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0) setSize({ w: r.width, h: r.height });
+      if (r.width > 0 && r.height > 0) {
+        setSize({ w: r.width, h: r.height });
+        // war die Gesamtansicht aktiv (z. B. vor dem Drehen des Geräts), passt sie sich der neuen Größe an
+        if (camMemory[memKeyRef.current]?.fitted) { delete camMemory[memKeyRef.current]; setCamState(null); }
+      }
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
   useEffect(() => { setCamState(camMemory[memKey] ?? null); }, [memKey]);
+  // iOS Safari zoomt sonst die ganze Seite statt der Karte
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const stop = (e: Event) => e.preventDefault();
+    el.addEventListener('gesturestart', stop);
+    el.addEventListener('gesturechange', stop);
+    el.addEventListener('dblclick', stop);
+    return () => { el.removeEventListener('gesturestart', stop); el.removeEventListener('gesturechange', stop); el.removeEventListener('dblclick', stop); };
+  }, []);
 
-  const fitScale = Math.max(W / size.w, H / size.h);     // Gesamtansicht
+  // Gesamtansicht: immer die ganze Welt; auf hohen Flächen (Tablet) läuft das Meer oben/unten einfach weiter
+  const fitW = W / size.w, fitH = H / size.h;
+  const fitScale = Math.max(fitW, fitH);
   const minScale = Math.min(H / size.h, fitScale) / 4.5;  // stärkster Zoom
   const maxScale = fitScale;
 
@@ -146,6 +166,14 @@ export function Board({ view, board, selected, focus, targets, overlay, flash, o
       const id = el?.getAttribute('data-tid');
       if (id) onTap(id);
     }
+    if (wasSingle && g && !g.moved) {
+      // Doppeltippen: hineinzoomen bzw. zurück zur Gesamtansicht
+      const now = Date.now(), lt = lastTap.current;
+      if (lt && now - lt.t < 320 && Math.hypot(lt.x - e.clientX, lt.y - e.clientY) < 30) {
+        if (c.sc > fitScale * 0.6) zoomAt(c, c.sc / 2.2, e.clientX, e.clientY); else setCam(overview());
+        lastTap.current = null;
+      } else lastTap.current = { t: now, x: e.clientX, y: e.clientY };
+    }
     if (pointers.current.size === 0) gesture.current = null;
   };
   const onWheel = (e: WheelEvent) => {
@@ -160,7 +188,7 @@ export function Board({ view, board, selected, focus, targets, overlay, flash, o
   const px = (n: number) => n * c.sc;                                   // Bildschirm-Pixel -> Brett-Einheiten
   const narrow = size.w < 520;
   const showNames = c.sc <= Math.min(1.7, fitScale / 2.2);
-  const r = Math.min(30, Math.max(9, px(narrow ? 7.5 : 8.5)));          // Einheitenmarker
+  const r = Math.min(40, Math.max(11, px(narrow ? 9 : 10)));          // Einheitenmarker
   const focusRoutes = focus ? routes.filter((rt) => rt.a === focus || rt.b === focus) : [];
 
   const seg = (rt: Route, k: string, style: Record<string, string | number>, dx: number) => [rt.pts, ...(rt.pts2 ? [rt.pts2] : [])].map((p, i) => (
@@ -243,38 +271,65 @@ export function Board({ view, board, selected, focus, targets, overlay, flash, o
     );
   };
 
+  // Einheitenmarker: Form je Spieler (Farbenblindheit), Kommandanten als Piktogramme, Station als Satelliten-Symbol
+  const seatOf = (pid: string | null) => (pid ? Math.max(0, view.seatOrder.indexOf(pid)) : 0);
+  const shapePath = (k: number, x: number, y: number, rr: number): string => {
+    const poly = (n: number, rot: number, f = 1) => Array.from({ length: n }, (_, i) => {
+      const a = rot + (i * 2 * Math.PI) / n;
+      return `${i ? 'L' : 'M'}${(x + Math.cos(a) * rr * f).toFixed(1)},${(y + Math.sin(a) * rr * f).toFixed(1)}`;
+    }).join('') + 'Z';
+    switch (k % 5) {
+      case 1: return poly(6, -Math.PI / 2, 1.08);       // Sechseck
+      case 2: return poly(4, Math.PI / 4, 1.25);        // Quadrat
+      case 3: return poly(4, -Math.PI / 2, 1.22);       // Raute
+      case 4: return poly(5, -Math.PI / 2, 1.08);       // Fünfeck
+      default: return `M${x - rr},${y}a${rr},${rr} 0 1 0 ${rr * 2},0a${rr},${rr} 0 1 0 ${-rr * 2},0Z`;
+    }
+  };
+
   const renderBadge = (id: string, dx: number) => {
     const t = view.territories[id];
     const g = GEO.territories[id];
-    const [lx, ly] = g.label;
+    const [lx, ly] = TDEF[id].landingSite && g.marker ? g.marker : g.label;
     const x = lx + dx;
     const owner = t.owner ? players[t.owner] : null;
     const n = units(t);
     const extra = overlay?.[id] ?? 0;
+    const cr = r * 0.74;                                   // Radius der Kommandanten-Abzeichen
+    const cmds = [...t.commanders].sort();
+    const startX = x - ((cmds.length - 1) * cr * 2.15) / 2;
+    const [nx, ny] = [g.label[0] + dx, g.label[1]];
     return (
       <g key={`b-${id}@${dx}`} data-tid={id} data-copy={dx} class="badge">
         <circle cx={x} cy={ly} r={r * 0.9} class="anchor" fill="#000" fill-opacity={0.001} />
-        {showNames && <text x={x} y={ly - r - px(4)} class="tname" font-size={px(10.5)} stroke-width={px(2.5)}>{tn(id)}</text>}
+        {showNames && <text x={nx} y={TDEF[id].landingSite ? ny - 2 : ly - r - px(4)} class="tname" font-size={px(10.5)} stroke-width={px(2.5)}>{tn(id)}</text>}
         {t.devastated && <text x={x} y={ly + r * 0.4} class="devast" font-size={r * 1.2}>✕</text>}
         {owner && (n > 0 || t.station) && (
           <>
-            <circle cx={x} cy={ly} r={r} fill={owner.color} stroke="#fff" stroke-width={Math.max(2, r * 0.14)} />
+            <path d={shapePath(seatOf(t.owner), x, ly, r + Math.max(1.5, r * 0.14))} fill="#050a14" fill-opacity={0.9} />
+            <path d={shapePath(seatOf(t.owner), x, ly, r)} fill={owner.color} stroke="#fff" stroke-width={Math.max(2, r * 0.13)} stroke-linejoin="round" class="unitdisc" />
             <text x={x} y={ly + r * 0.37} class="count" font-size={r * 1.05}>{n}</text>
           </>
         )}
-        {t.commanders.map((cm, i) => (
-          <g key={cm}>
-            <rect x={x + r * 0.62 + i * r * 1.02} y={ly - r * 1.72} width={r * 0.98} height={r * 0.95} rx={r * 0.2} fill="#0b1322" stroke="#fff" stroke-width={Math.max(1, r * 0.08)} />
-            <text x={x + r * 1.11 + i * r * 1.02} y={ly - r * 1.0} class="cmd" font-size={r * 0.74}>{COMMANDER_SHORT[cm]}</text>
-          </g>
-        ))}
+        {cmds.map((cm, i) => {
+          const cx = startX + i * cr * 2.15, cy = ly + r + cr * 0.95;
+          return (
+            <g key={cm} class={`cmdmark cmd-${cm}`}>
+              <circle cx={cx} cy={cy} r={cr} fill="#0b1322" stroke={CMD_COLOR[cm]} stroke-width={Math.max(1.6, cr * 0.16)} />
+              <IcoG name={cm} x={cx} y={cy} size={cr * 1.35} color={CMD_COLOR[cm]} sw={2.1} />
+            </g>
+          );
+        })}
         {t.station && (
-          <polygon points={`${x - r * 1.7},${ly - r * 0.9} ${x - r * 1.15},${ly - r * 1.55} ${x - r * 0.6},${ly - r * 0.9} ${x - r * 1.15},${ly - r * 0.25}`} fill="#22d3ee" stroke="#fff" stroke-width={Math.max(1, r * 0.08)} />
+          <g class="stationmark">
+            <circle cx={x - r * 1.05} cy={ly - r * 0.95} r={cr * 1.05} fill="#0b1322" stroke="#22d3ee" stroke-width={Math.max(1.6, cr * 0.16)} />
+            <IcoG name="station" x={x - r * 1.05} y={ly - r * 0.95} size={cr * 1.5} color="#22d3ee" sw={2} />
+          </g>
         )}
         {extra > 0 && (
           <g>
-            <rect x={x - r * 1.1} y={ly + r * 1.1} width={r * 2.2} height={r * 1.2} rx={r * 0.6} fill="#22c55e" stroke="#fff" stroke-width={Math.max(1, r * 0.08)} />
-            <text x={x} y={ly + r * 1.98} class="plus" font-size={r * 0.85}>+{extra}</text>
+            <rect x={x - r * 1.1} y={ly - r * 2.15} width={r * 2.2} height={r * 1.15} rx={r * 0.55} fill="#22c55e" stroke="#fff" stroke-width={Math.max(1, r * 0.08)} />
+            <text x={x} y={ly - r * 1.3} class="plus" font-size={r * 0.85}>+{extra}</text>
           </g>
         )}
       </g>
@@ -338,12 +393,14 @@ export function Board({ view, board, selected, focus, targets, overlay, flash, o
     const g = GEO.territories[id];
     if (!g.marker) return null;
     const [mx, my] = g.marker;
-    const rr = Math.min(26, Math.max(10, px(9)));
+    const rr = r * 1.55;
+    const t = view.territories[id];
+    const held = Boolean(t.owner);
     return (
       <g key={`lm-${id}`} data-tid={id} class="landing-marker">
-        <circle cx={mx} cy={my} r={rr} fill="#fde047" stroke="#141824" stroke-width={rr * 0.15} />
-        <path d={`M${mx - rr * 0.45},${my - rr * 0.3} L${mx},${my + rr * 0.42} L${mx + rr * 0.45},${my - rr * 0.3} Z`} fill="#141824" />
-        <text x={mx} y={my + rr * 2.05} class="landing" font-size={rr * 0.95} stroke-width={rr * 0.3}>{GEO.landingShort[id]}</text>
+        <circle cx={mx} cy={my} r={rr} fill="#fde047" fill-opacity={held ? 0.12 : 0.22} stroke="#fde047" stroke-width={Math.max(2, r * 0.2)} stroke-dasharray={held ? undefined : `${r * 0.7} ${r * 0.5}`} />
+        {!held && <IcoG name="pad" x={mx} y={my} size={r * 1.5} color="#fde047" sw={2.2} />}
+        <text x={mx} y={my + rr + r * 0.95} class="landing" font-size={r * 1.05} stroke-width={r * 0.3}>{GEO.landingShort[id]}</text>
       </g>
     );
   };
@@ -388,7 +445,9 @@ export function Board({ view, board, selected, focus, targets, overlay, flash, o
         </defs>
         {board === 'planet' ? (
           <>
-            <rect x={vx - 10} y={vy - 10} width={vw + 20} height={vh + 20} fill={earth ? '#072634' : '#0f2c4d'} />
+            <rect x={vx - 10} y={vy - 10} width={vw + 20} height={vh + 20} fill={earth ? '#0a3445' : '#0f2c4d'} />
+            {earth && <rect x={vx - 10} y={vy - 10} width={vw + 20} height={Math.max(0, 10 - vy)} fill="#0c3f52" />}
+            {earth && <rect x={vx - 10} y={H} width={vw + 20} height={Math.max(0, vy + vh + 10 - H)} fill="#072634" />}
             {offsets.map((dx) => (
               <g key={`sea-${dx}`} transform={dx ? `translate(${dx},0)` : undefined} pointer-events="none">
                 <rect x={0} y={0} width={W} height={H} fill={earth ? 'url(#seaEarth)' : 'url(#seaGrad)'} />
@@ -432,12 +491,19 @@ export function Board({ view, board, selected, focus, targets, overlay, flash, o
         {board === 'planet' && offsets.map((dx) => ids.filter((id) => GEO.territories[id].hit).map((id) => (
           <path key={`hit-${id}@${dx}`} d={GEO.territories[id].hit} transform={dx ? `translate(${dx},0)` : undefined} data-tid={id} data-copy={dx} class="hit" fill="#000" fill-opacity={0.001} />
         )))}
-        {offsets.map((dx) => ids.map((id) => renderBadge(id, dx)))}
         {board === 'moon' && MOON_IDS.filter((id) => TDEF[id].landingSite).map(renderLanding)}
+        {offsets.map((dx) => ids.map((id) => renderBadge(id, dx)))}
         {offsets.map((dx) => regions.map((rid) => renderRegionLabel(rid, dx)))}
       </svg>
       {legend && (
         <div class="legend" onClick={() => setLegend(false)}>
+          <div class="lg-title">Marker</div>
+          <div class="lg-row"><svg width="34" height="24" viewBox="0 0 34 24"><circle cx="9" cy="12" r="8" fill="#e5484d" stroke="#fff" stroke-width="2" /><path d="M22,5l7,4v6l-7,4l-7-4V9z" fill="#30a46c" stroke="#fff" stroke-width="2" /></svg><span>Einheiten (Form = Spieler)</span></div>
+          {(['LAND', 'NAVAL', 'SPACE', 'NUCLEAR', 'DIPLOMAT'] as const).map((c) => (
+            <div class="lg-row" key={c}><span class="lg-ico" style={{ borderColor: CMD_COLOR[c], color: CMD_COLOR[c] }}><Ico name={c} size={15} /></span><span>{{ LAND: 'Land-Kommandant', NAVAL: 'Marine-Kommandant', SPACE: 'Raum-Kommandant', NUCLEAR: 'Nuklear-Kommandant (Atom)', DIPLOMAT: 'Diplomat' }[c]}</span></div>
+          ))}
+          <div class="lg-row"><span class="lg-ico" style={{ borderColor: '#22d3ee', color: '#22d3ee' }}><Ico name="station" size={15} /></span><span>Station (Brücke zum Mond)</span></div>
+          <div class="lg-row"><span class="lg-ico" style={{ borderColor: '#fde047', color: '#fde047' }}><Ico name="pad" size={15} /></span><span>Mond: Landeplatz</span></div>
           <div class="lg-title">Kontinente</div>{legendRows('continent')}
           <div class="lg-title">Unterwasserkolonien</div>{legendRows('waterColony')}
           <div class="lg-title">Mondkolonien</div>{legendRows('lunarColony')}
@@ -462,10 +528,10 @@ export function Board({ view, board, selected, focus, targets, overlay, flash, o
         </div>
       )}
       <div class="mapctl">
-        <button type="button" class={legend ? 'on' : ''} onClick={() => setLegend(!legend)} aria-label="Legende">ℹ</button>
-        <button type="button" onClick={() => zoomButton(1 / 1.6)} aria-label="Hineinzoomen">＋</button>
-        <button type="button" onClick={() => zoomButton(1.6)} aria-label="Herauszoomen">－</button>
-        <button type="button" class={isOverview ? 'on' : ''} onClick={() => setCam(overview())} aria-label="Gesamtansicht">⤢</button>
+        <button type="button" class={legend ? 'on' : ''} onClick={() => setLegend(!legend)} aria-label="Legende"><Ico name="info" size={20} /></button>
+        <button type="button" onClick={() => zoomButton(1 / 1.6)} aria-label="Hineinzoomen"><Ico name="plus" size={20} /></button>
+        <button type="button" onClick={() => zoomButton(1.6)} aria-label="Herauszoomen"><Ico name="minus" size={20} /></button>
+        <button type="button" class={isOverview ? 'on' : ''} onClick={() => setCam(overview())} aria-label="Gesamtansicht"><Ico name="fit" size={20} /></button>
       </div>
     </div>
   );

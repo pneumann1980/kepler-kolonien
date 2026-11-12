@@ -4,7 +4,9 @@ import {
 } from '../../engine/index.ts';
 import type { Command, GameState, Player } from '../../engine/index.ts';
 import type { GameView } from '../api.ts';
+import { useState } from 'preact/hooks';
 import { Btn } from './widgets.tsx';
+import { Ico, CMD_COLOR } from './icons.tsx';
 
 const TIMING_LABEL: Record<string, string> = {
   VOR: 'Vor der ersten Invasion', ANG: 'Bei eigener Invasion', REA: 'Reaktion (automatisch)', ERO: 'Nach Gebietsverlust (automatisch)',
@@ -89,6 +91,56 @@ export function Hand({ view, s, me, onPlay, onSetting }: { view: GameView; s: Ga
           <input type="checkbox" checked={me.settings.defendMax} onChange={(e) => onSetting({ t: 'SetDefendMax', on: (e.target as HTMLInputElement).checked })} />
           Immer mit maximaler Würfelzahl verteidigen (empfohlen)
         </label>
+      </div>
+    </div>
+  );
+}
+
+/** Handkarten als Leiste unten im Spielfeld: Piktogramm je Deck, Kosten, antippen für Details */
+export function HandTray({ view, s, me, onPlay }: { view: GameView; s: GameState; me: Player | null; onPlay: (inst: string) => void }) {
+  const [open, setOpen] = useState(true);
+  const [sel, setSel] = useState<string | null>(null);
+  if (!me) return null;
+  const hand = [...me.hand].sort((a, b) => CARD[cardType(a)].deck.localeCompare(CARD[cardType(b)].deck));
+  const selDef = sel && me.hand.includes(sel) ? CARD[cardType(sel)] : null;
+  const st = selDef && sel ? cardStatus(view, s, me, sel) : null;
+  return (
+    <div class="tray" data-open={open ? 1 : 0}>
+      {selDef && sel && st && (
+        <div class={`tray-detail deck-${selDef.deck.toLowerCase()}`}>
+          <div class="td-head">
+            <span class="td-ico" style={{ color: CMD_COLOR[selDef.deck] }}><Ico name={selDef.deck} size={22} /></span>
+            <b>{selDef.name}</b>
+            <span class="cost"><Ico name="bolt" size={14} /> {selDef.powerUp}</span>
+            <button type="button" class="x" aria-label="Schließen" onClick={() => setSel(null)}><Ico name="close" size={16} /></button>
+          </div>
+          <div class="card-meta">{COMMANDER_NAMES[selDef.deck]} · {TIMING_LABEL[selDef.timing]}</div>
+          <div class="card-text">{selDef.text}</div>
+          {st.ok ? <Btn small kind="ok" onClick={() => { setSel(null); onPlay(sel); }}>Spielen</Btn> : <div class="hint">{['REA', 'ERO', 'KAR'].includes(selDef.timing) ? (autoReactEnabled(me, selDef.id) ? 'Wird automatisch eingesetzt (Hand-Menü: abschaltbar).' : 'Automatik ist aus (Hand-Menü).') : st.reason}</div>}
+        </div>
+      )}
+      <div class="tray-bar">
+        <button type="button" class="tray-toggle" onClick={() => setOpen(!open)} aria-label={open ? 'Handkarten einklappen' : 'Handkarten ausklappen'}>
+          <Ico name="cards" size={18} /><b>{me.hand.length}</b><Ico name={open ? 'chevronDown' : 'chevronUp'} size={14} />
+        </button>
+        {open && (
+          <div class="tray-row">
+            
+            {hand.map((inst) => {
+              const def = CARD[cardType(inst)];
+              const ok = cardStatus(view, s, me, inst).ok;
+              const auto = ['REA', 'ERO', 'KAR'].includes(def.timing);
+              return (
+                <button type="button" key={inst} class={`tile deck-${def.deck.toLowerCase()} ${ok ? 'playable' : ''} ${sel === inst ? 'sel' : ''}`} onClick={() => setSel(sel === inst ? null : inst)} title={def.name}>
+                  <span class="t-ico" style={{ color: CMD_COLOR[def.deck] }}><Ico name={def.deck} size={22} /></span>
+                  <span class="t-cost"><Ico name="bolt" size={11} />{def.powerUp}</span>
+                  <span class="t-name">{def.name}</span>
+                  {auto && <span class="t-auto" title="wirkt automatisch"><Ico name="check" size={10} /></span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

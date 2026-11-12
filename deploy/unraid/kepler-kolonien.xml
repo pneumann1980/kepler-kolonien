@@ -10,7 +10,7 @@
   <Overview>Kepler-Kolonien: selbst gehosteter Multiplayer-Server für ein rundenbasiertes Strategiespiel (2–5 Spieler, Bots, Partien über mehrere Tage). Spieler verbinden sich per Smartphone oder Tablet (PWA), haben ein Profil und spielen gegeneinander. Zugriff von außen per Cloudflare Tunnel empfohlen.</Overview>
   <Category>GameServers:</Category>
   <WebUI>http://[IP]:[PORT:8210]/</WebUI>
-  <Icon>https://raw.githubusercontent.com/pneumann1980/kepler-kolonien/main/src/client/public/icons/icon-192.png</Icon>
+  <Icon>https://raw.githubusercontent.com/pneumann1980/kepler-kolonien/ccr-febc0e07-5171qs/deploy/unraid/icon.png</Icon>
   <ExtraParams>--restart unless-stopped</ExtraParams>
   <Config Name="WebUI-Port" Target="8210" Default="8210" Mode="tcp" Description="HTTP-Port der Web-App (im LAN). Bei reinem Tunnel-Betrieb im Netz kepler-net nicht nötig." Type="Port" Display="always" Required="false">8210</Config>
   <Config Name="Appdata" Target="/data" Default="/mnt/user/appdata/kepler-kolonien" Mode="rw" Description="Datenbank, Backups, VAPID-Schlüssel" Type="Path" Display="always" Required="true">/mnt/user/appdata/kepler-kolonien</Config>

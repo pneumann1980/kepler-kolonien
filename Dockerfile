@@ -33,6 +33,11 @@ COPY --from=build /src/src/server ./src/server
 COPY --from=build /src/dist/public ./dist/public
 RUN mkdir -p /data
 VOLUME ["/data"]
+LABEL org.opencontainers.image.title="Kepler-Kolonien" \
+      org.opencontainers.image.source="https://github.com/pneumann1980/kepler-kolonien" \
+      net.unraid.docker.icon="https://raw.githubusercontent.com/pneumann1980/kepler-kolonien/ccr-febc0e07-5171qs/deploy/unraid/icon.png" \
+      net.unraid.docker.webui="http://[IP]:[PORT:8210]/"
+
 EXPOSE 8210
 HEALTHCHECK --interval=30s --timeout=3s --start-period=15s \
   CMD wget -qO- http://127.0.0.1:8210/healthz || exit 1

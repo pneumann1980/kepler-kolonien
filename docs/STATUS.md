@@ -2,6 +2,36 @@
 
 Stand: 2026-11-12. Grundlage ist [`KONZEPT.md`](KONZEPT.md) v1.3. Dieses Dokument trennt ehrlich, was fertig und getestet ist, was vereinfacht umgesetzt wurde und was noch fehlt.
 
+## 00. Spieloberfläche im Querformat (2026-11-12, zweites Update)
+
+![Querformat Handy](assets/screenshots/vergleich/nachher-querformat-handy.jpg)
+
+| Anliegen | Umsetzung |
+|---|---|
+| Immer Querformat | Die Spielansicht versucht beim Öffnen, das Querformat zu sperren (`screen.orientation.lock`; wirkt in installierter App bzw. im Vollbild). Sonst zeigt sie im Hochformat den Hinweis „Bitte Gerät drehen“ ([Bild](assets/screenshots/vergleich/nachher-hochformat-hinweis.jpg)) mit einem Link „Trotzdem im Hochformat anzeigen“. Lobby und Profil bleiben in beiden Ausrichtungen nutzbar |
+| Menü rechts, neue Icons | Menüleiste am rechten Rand: Aktion, Hand, Rang, Protokoll, Seitenleiste ein/aus, Vollbild. Alle Piktogramme sind ein eigener Icon-Satz (`src/client/ui/icons.tsx`), keine Emojis mehr |
+| Statistik oben | Kopfleiste: Spielname und Phase, Rangliste (Platz, Spieler, Punkte; wer am Zug ist, leuchtet), dazu eigene Werte: Energie, Handkarten, Gebiete, Einheiten, Stationen |
+| Rang-/Punkteliste sichtbar | Immer in der Kopfleiste. Antippen öffnet die Tabelle „Rangliste“ ([Bild](assets/screenshots/vergleich/nachher-rangliste-handy.jpg)) mit Gebieten, Regionsboni, Punkten, Energie, Einheiten, Stationen. Zwischenstand = Gebiete + Regionsboni; private Wertungskarten zählen erst am Ende |
+| Handkarten unten | Leiste unten im Spielfeld: ein Piktogramm je Deck (Land, Marine, Raum, Atom, Diplomat), Kosten, grüner Rand = jetzt spielbar. Antippen zeigt Text und „Spielen“; einklappbar |
+| Atom-Marker | Der Nuklear-Kommandant erscheint als Atom-Symbol (drei Bahnen mit Kern), auf der Karte, in der Hand, in Rangliste und Legende |
+| Mondbasen und Kommandanten erkennbar | Kommandanten sind runde Piktogramm-Marker unter der Einheitenzahl. Stationen tragen ein Satelliten-Symbol. Mond-Landeplätze sind ein gelber Landering mit Landeplatz-Symbol, gefüllt mit der Einheitenzahl des Besitzers. Die Legende (ℹ) erklärt alle Marker |
+| Zoom passt zum Bildschirm | Die Gesamtansicht passt sich der Fenstergröße an, auch nach dem Drehen. Doppeltippen zoomt, Pinch und Mausrad funktionieren. Auf iOS wird der Seitenzoom verhindert, damit nur die Karte zoomt. Bei hohen Flächen läuft das Meer oben und unten weiter. Auf kleinen Displays wird die Seitenleiste automatisch eingeklappt |
+| Logo | Neues Logo (Erde mit Orbit, Station und Mond) als SVG und PNG. Unraid zeigt es als Container-Symbol: Das Template verweist auf `deploy/unraid/icon.png`, zusätzlich trägt das Image das Label `net.unraid.docker.icon` |
+| Optik allgemein | Dunkles Raumdesign mit Verläufen und Glaseffekt, Einheitenmarker mit Form je Spieler (Kreis, Sechseck, Quadrat, Raute, Fünfeck; hilft bei Farbschwäche), kontrastreiche Marker, Animationen |
+
+**Zusätzlich behoben**
+- Das Icon-URL im Unraid-Template zeigte auf den Zweig `main`, der nicht existiert. Deshalb erschien das Logo nie.
+- Regionsbeschriftungen überlappen sich nicht mehr (verschieben, sonst ausblenden); die Legende nennt immer alle.
+- Service-Worker-Cache auf v2 angehoben, damit die neue Oberfläche sicher geladen wird.
+- Der Server lieferte JPEG als `application/octet-stream` aus.
+- Piktogramme statt Buchstaben bei Anheuern, Aufstellung, Truppenauswahl und Territorium-Info.
+
+**Offen / nicht geprüft**
+- Echte Geräte: Sperre des Querformats, Vollbild und Pinch-Zoom auf iOS/Android sind nur mit Playwright-Emulation getestet. Auf dem iPhone gibt es keinen Vollbildmodus im Browser; dort hilft nur die installierte App.
+- Das Icon-Template zeigt auf den Zweig `ccr-febc0e07-5171qs`; nach einem Merge nach `main` sollte die URL angepasst werden.
+- Sehr kleine Geräte (iPhone SE 1. Generation, 568 × 320) sind bedienbar, aber eng; die Seitenleiste ist dort standardmäßig eingeklappt.
+- Sprache und Beschriftungen der Hand-Registerkarte (Reaktionsregeln) sind unverändert.
+
 ## 0. Überarbeitung Spielbrett und Regelmechanik (2026-11-12)
 
 ### 0.1 Neues Brett: Erde & Mond (Kartenrevision 3)

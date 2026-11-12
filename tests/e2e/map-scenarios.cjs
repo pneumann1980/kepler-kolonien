@@ -14,7 +14,7 @@ const USER = 'Karla' + Math.floor(Math.random() * 9000 + 1000);
 (async () => {
   const browser = await chromium.launch();
   // schmales Smartphone (iPhone SE: 375 px) im Hochformat
-  const ctx = await browser.newContext({ ...devices['iPhone SE'] });
+  const ctx = await browser.newContext({ ...devices['iPhone 13 landscape'] });
   const page = await ctx.newPage();
   page.on('dialog', (d) => d.accept());
   page.on('pageerror', (e) => { console.error('PAGEERROR', e.message); process.exitCode = 1; });
@@ -38,7 +38,7 @@ const USER = 'Karla' + Math.floor(Math.random() * 9000 + 1000);
       const bb = await el.boundingBox().catch(() => null);
       if (!bb) continue;
       const cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2;
-      if (cx < box.x + 4 || cx > box.x + box.width - 52 || cy < box.y + 46 || cy > box.y + box.height - 4) continue;
+      if (cx < box.x + 4 || cx > box.x + box.width - 52 || cy < box.y + 46 || cy > box.y + box.height - 92) continue;
       const water = /^(NOR|PEL|ABY|KOR|SUD)-/.test(tid);   // Trefferflächen nur bei Wasserfeldern bevorzugen (Land: Marker liegt sicher im Gebiet)
       const score = (cls.includes('landing') ? 4 : cls.includes('hit') ? (water ? 3 : 1) : 2);
       if (!best || score > best.score) best = { cx, cy, score };
