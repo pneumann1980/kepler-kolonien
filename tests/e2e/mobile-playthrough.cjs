@@ -169,7 +169,7 @@ fs.mkdirSync(SHOTS, { recursive: true });
   // Rest der Partie an Bot abgeben und auf Spielende warten
   await page.evaluate(async (id) => fetch(`/api/games/${id}/command`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cmd: { t: 'Resign' } }) }), gameId);
   await waitMine((x) => x.phase === 'gameOver', 'Spielende', 300000);
-  await page.getByRole('button', { name: 'Planet' }).click();
+  await page.getByRole('button', { name: /^(Erde|Planet)$/ }).click();
   await page.waitForTimeout(1500);
   await shot('18-gameover');
   // Tablet-Ansicht

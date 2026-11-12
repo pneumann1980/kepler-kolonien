@@ -71,7 +71,10 @@ Jeder Fehler ist durch einen Regressionstest abgedeckt. Am Ausgangsstand `c7e5bf
   - Tablet Erde/Mond;
   - alte Partie.
 
-  Dazu `mobile-playthrough.cjs` und `multiplayer.cjs` (Ergebnis siehe Commit-Nachricht).
+  Dazu laufen weitere Browser-Tests, beide bestanden:
+  - `mobile-playthrough.cjs`: iPhone, von der Registrierung bis zur Wertung;
+  - `multiplayer.cjs`: zwei Menschen, iPhone und Android.
+- **Docker:** Das Image baut (inkl. Typprüfung und Engine-Tests im Build). Der Container startet; `/healthz` und `/board/moon.jpg` (als `image/jpeg`) werden ausgeliefert.
 
 ### 0.4 Offen bzw. nicht verifiziert
 

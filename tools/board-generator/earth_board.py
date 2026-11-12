@@ -240,8 +240,8 @@ def load_pieces(path):
         name = f['properties']['name']
         g = shape(f['geometry'])
         if name == 'Russia':   # Polygone über die Datumsgrenze: östliche Längen fortlaufend (bis 190°) schreiben
-            from shapely.ops import transform as _tr
-            g = _tr(lambda x, y, z=None: (np.where(np.asarray(x) < 0, np.asarray(x) + 360, x), y), g)
+            import shapely
+            g = shapely.transform(g, lambda c: np.column_stack([np.where(c[:, 0] < 0, c[:, 0] + 360, c[:, 0]), c[:, 1]]))
         for p0 in polys_of(g):
             for p in polys_of(make_valid(p0)) if not p0.is_valid else [p0]:
                 pieces.append((name, p))

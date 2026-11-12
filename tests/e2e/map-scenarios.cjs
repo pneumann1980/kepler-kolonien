@@ -274,7 +274,7 @@ const USER = 'Karla' + Math.floor(Math.random() * 9000 + 1000);
   s = await raw();
   s.mapId = 'kepler-colonies-2';
   await setState(s);
-  await page.getByRole('button', { name: 'Planet' }).click().catch(() => {});
+  await page.getByRole('button', { name: /^(Erde|Planet)$/ }).click().catch(() => {});
   await page.reload();
   await page.locator('svg.board').waitFor();
   await page.waitForTimeout(600);
