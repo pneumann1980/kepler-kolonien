@@ -1,0 +1,35 @@
+# Referenz-Setup: Spielserver + Cloudflare Tunnel im gemeinsamen Netz "kepler-net"
+networks:
+  kepler-net:
+    name: kepler-net
+
+services:
+  kepler-kolonien:
+    build: .
+    image: kepler-kolonien:latest
+    container_name: kepler-kolonien
+    restart: unless-stopped
+    networks: [kepler-net]
+    ports:
+      - "8210:8210"            # optional: direkter LAN-Zugriff; ohne Tunnel-Nutzung entfernen
+    environment:
+      TZ: Europe/Berlin
+      PUID: "99"
+      PGID: "100"
+      ADMIN_PASSWORD: "bitte-aendern"
+      PUBLIC_URL: "https://kepler.deine-domain.de"
+      TRUST_PROXY: "cloudflare"
+      TURN_DEADLINE_HOURS: "24"
+    volumes:
+      - ./data:/data
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest   # für den Produktivbetrieb eine feste Version pinnen
+    container_name: cloudflared-kepler
+    restart: unless-stopped
+    networks: [kepler-net]
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: "<Token aus Cloudflare Zero Trust>"
+    depends_on: [kepler-kolonien]
+    profiles: ["tunnel"]                    # starten mit: docker compose --profile tunnel up -d

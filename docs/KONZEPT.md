@@ -4,6 +4,7 @@
 **Status:** Konzept v1.3 (2026-11-11). Die Regeln sind gegen das offizielle Regelheft abgeglichen, die Einkommenstabelle der Score Chart ist hinterlegt, alle Entscheidungen des Auftraggebers sind eingearbeitet (§0.1). Es ist noch nichts implementiert.
 **Projekt:** Kepler-Kolonien · Repository und Docker-Image `kepler-kolonien` · Tunnel-Hostname `kepler.<domain>` (Domain wird beim Deployment gesetzt; Platzhalter in diesem Dokument: `kepler.deine-domain.de`).
 **Zielplattform:** ein Docker-Container auf Unraid, öffentlich erreichbar über einen Cloudflare Tunnel. Clients sind Smartphones (PWA im Browser, keine App-Store-Installation).
+**Umsetzungsstand:** Version 0.1.0 ist implementiert. Was fertig ist, was vereinfacht wurde und was offen bleibt, steht in [`STATUS.md`](STATUS.md).
 **Begleitdokument:** [`KARTEN.md`](KARTEN.md) mit dem vollständigen Katalog aller 100 Kommandokarten (5 Decks à 20).
 
 ---

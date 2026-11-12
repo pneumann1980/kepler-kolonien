@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>kepler-kolonien</Name>
+  <Repository>ghcr.io/pneumann1980/kepler-kolonien:latest</Repository>
+  <Registry>https://github.com/pneumann1980/kepler-kolonien/pkgs/container/kepler-kolonien</Registry>
+  <Network>bridge</Network>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/pneumann1980/kepler-kolonien</Support>
+  <Project>https://github.com/pneumann1980/kepler-kolonien</Project>
+  <Overview>Kepler-Kolonien: selbst gehosteter Multiplayer-Server für ein rundenbasiertes Strategiespiel (2–5 Spieler, Bots, Partien über mehrere Tage). Spieler verbinden sich per Smartphone oder Tablet (PWA), haben ein Profil und spielen gegeneinander. Zugriff von außen per Cloudflare Tunnel empfohlen.</Overview>
+  <Category>GameServers:</Category>
+  <WebUI>http://[IP]:[PORT:8210]/</WebUI>
+  <Icon>https://raw.githubusercontent.com/pneumann1980/kepler-kolonien/main/src/client/public/icons/icon-192.png</Icon>
+  <ExtraParams>--restart unless-stopped</ExtraParams>
+  <Config Name="WebUI-Port" Target="8210" Default="8210" Mode="tcp" Description="HTTP-Port der Web-App (im LAN). Bei reinem Tunnel-Betrieb im Netz kepler-net nicht nötig." Type="Port" Display="always" Required="false">8210</Config>
+  <Config Name="Appdata" Target="/data" Default="/mnt/user/appdata/kepler-kolonien" Mode="rw" Description="Datenbank, Backups, VAPID-Schlüssel" Type="Path" Display="always" Required="true">/mnt/user/appdata/kepler-kolonien</Config>
+  <Config Name="Admin-Passwort" Target="ADMIN_PASSWORD" Default="" Description="Damit kann sich ein Profil im Profil-Menü zum Admin machen (Partien löschen)." Type="Variable" Display="always" Required="true" Mask="true"></Config>
+  <Config Name="Öffentliche URL" Target="PUBLIC_URL" Default="" Description="z. B. https://kepler.deine-domain.de (Cloudflare-Tunnel-Hostname). Setzt sichere Cookies." Type="Variable" Display="always" Required="false"></Config>
+  <Config Name="Proxy-Modus" Target="TRUST_PROXY" Default="cloudflare" Description="false | true (X-Forwarded-For) | cloudflare (CF-Connecting-IP)" Type="Variable" Display="advanced" Required="false">cloudflare</Config>
+  <Config Name="Zug-Frist (Stunden)" Target="TURN_DEADLINE_HOURS" Default="24" Description="Standard-Frist für neue Partien; danach übernimmt ein Bot den Zug." Type="Variable" Display="advanced" Required="false">24</Config>
+  <Config Name="Registrierung offen" Target="REGISTRATION_OPEN" Default="true" Description="false = keine neuen Profile" Type="Variable" Display="advanced" Required="false">true</Config>
+  <Config Name="Einladungscode" Target="REGISTRATION_CODE" Default="" Description="Optional: Code, der bei der Registrierung verlangt wird" Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="VAPID-Kontakt" Target="VAPID_SUBJECT" Default="mailto:admin@localhost" Description="Kontaktadresse für Web Push (Pflichtangabe der Push-Dienste)" Type="Variable" Display="advanced" Required="false">mailto:admin@localhost</Config>
+  <Config Name="PUID" Target="PUID" Default="99" Type="Variable" Display="advanced" Required="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Type="Variable" Display="advanced" Required="false">100</Config>
+  <Config Name="Zeitzone" Target="TZ" Default="Europe/Berlin" Type="Variable" Display="advanced" Required="false">Europe/Berlin</Config>
+  <Config Name="Backup-Aufbewahrung (Tage)" Target="BACKUP_RETENTION_DAYS" Default="14" Type="Variable" Display="advanced" Required="false">14</Config>
+</Container>
