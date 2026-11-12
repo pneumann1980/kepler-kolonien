@@ -30,36 +30,65 @@ const baseFill = (type: string) => (type === 'water' ? '#1d4a78' : type === 'moo
 export function Board({ view, board, selected, targets, overlay, flash, onTap }: BoardProps) {
   const dims = board === 'planet' ? GEO.boards.planet : GEO.boards.moon;
   const W = dims.width, H = dims.height;
+  const wrap = board === 'planet';
   const ids = board === 'planet' ? PLANET_IDS : MOON_IDS;
   const svgRef = useRef<SVGSVGElement>(null);
-  const [tf, setTf] = useState({ k: 1, x: 0, y: 0 });
+  const [size, setSize] = useState({ w: 360, h: 300 });
+  // Kamera: Mittelpunkt (Brett-Einheiten) und Maßstab (Brett-Einheiten pro Pixel)
+  const [cam, setCam] = useState<{ cx: number; cy: number; sc: number } | null>(null);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
-  const gesture = useRef<{ startX: number; startY: number; moved: boolean; dist?: number; k0?: number; mid?: { x: number; y: number }; tf0?: typeof tf } | null>(null);
+  const gesture = useRef<{ sx: number; sy: number; moved: boolean; cam0: { cx: number; cy: number; sc: number }; dist?: number; mid?: { x: number; y: number } } | null>(null);
 
-  useEffect(() => { setTf({ k: 1, x: 0, y: 0 }); }, [board]);
-
-  const unitPerPx = () => {
+  useEffect(() => {
     const el = svgRef.current;
-    if (!el) return 1;
-    const r = el.getBoundingClientRect();
-    return 1 / Math.min(r.width / W, r.height / H);
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) setSize({ w: r.width, h: r.height });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const fitScale = Math.max(W / size.w, H / size.h);           // alles sichtbar
+  const heightScale = wrap ? H / size.h : fitScale;             // Planet: volle Höhe, horizontal scrollen
+  const minScale = Math.min(heightScale, fitScale) / 5;         // max. 5x hineinzoomen
+  const maxScale = wrap ? Math.max(heightScale, W / size.w) : fitScale;
+
+  const clamp = (c: { cx: number; cy: number; sc: number }) => {
+    const sc = Math.max(minScale, Math.min(maxScale, c.sc));
+    const vw = size.w * sc, vh = size.h * sc;
+    let cx = c.cx, cy = c.cy;
+    if (wrap) cx = ((cx % W) + W) % W;
+    else cx = vw >= W ? W / 2 : Math.min(W - vw / 2, Math.max(vw / 2, cx));
+    cy = vh >= H ? H / 2 : Math.min(H - vh / 2, Math.max(vh / 2, cy));
+    return { cx, cy, sc };
   };
-  const clampTf = (t: typeof tf) => {
-    const k = Math.max(1, Math.min(6, t.k));
-    let x = t.x;
-    if (board === 'planet') { x = ((x % (W * k)) + W * k) % (W * k); if (x > 0) x -= W * k; if (k === 1) x = Math.round(x / W) * W; }
-    else x = Math.min(0, Math.max(W - W * k, x));
-    const y = Math.min(0, Math.max(H - H * k, t.y));
-    return { k, x: board === 'planet' && k === 1 ? 0 : x, y };
-  };
+
+  // Startansicht: Planet auf volle Höhe, zentriert auf eigene Gebiete
+  useEffect(() => {
+    const mine = ids.filter((id) => view.territories[id].owner && view.territories[id].owner === view.me);
+    let cx = W / 2;
+    if (wrap && mine.length) {
+      // Kreismittel der x-Koordinaten (wegen Umlauf)
+      let sx = 0, cy2 = 0;
+      for (const id of mine) { const a = (GEO.territories[id].label[0] / W) * 2 * Math.PI; sx += Math.sin(a); cy2 += Math.cos(a); }
+      cx = ((Math.atan2(sx, cy2) / (2 * Math.PI)) * W + W) % W;
+    }
+    setCam(clamp({ cx, cy: H / 2, sc: heightScale }));
+  }, [board, size.w, size.h]);
+
+  const c = cam ? clamp(cam) : clamp({ cx: W / 2, cy: H / 2, sc: heightScale });
+  const vw = size.w * c.sc, vh = size.h * c.sc;
+  const vx = c.cx - vw / 2, vy = c.cy - vh / 2;
 
   const onPointerDown = (e: PointerEvent) => {
     (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointers.current.size === 1) gesture.current = { startX: e.clientX, startY: e.clientY, moved: false, tf0: tf };
+    if (pointers.current.size === 1) gesture.current = { sx: e.clientX, sy: e.clientY, moved: false, cam0: c };
     else if (pointers.current.size === 2) {
       const [a, b] = [...pointers.current.values()];
-      gesture.current = { startX: 0, startY: 0, moved: true, dist: Math.hypot(a.x - b.x, a.y - b.y), k0: tf.k, mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, tf0: tf };
+      gesture.current = { sx: 0, sy: 0, moved: true, cam0: c, dist: Math.hypot(a.x - b.x, a.y - b.y), mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } };
     }
   };
   const onPointerMove = (e: PointerEvent) => {
@@ -67,20 +96,22 @@ export function Board({ view, board, selected, targets, overlay, flash, onTap }:
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const g = gesture.current;
     if (!g) return;
-    const u = unitPerPx();
-    if (pointers.current.size === 1 && g.tf0) {
-      const dx = e.clientX - g.startX, dy = e.clientY - g.startY;
+    if (pointers.current.size === 1) {
+      const dx = e.clientX - g.sx, dy = e.clientY - g.sy;
       if (Math.hypot(dx, dy) > 8) g.moved = true;
-      if (g.moved) setTf(clampTf({ k: g.tf0.k, x: g.tf0.x + dx * u, y: g.tf0.y + dy * u }));
-    } else if (pointers.current.size === 2 && g.dist && g.tf0 && g.mid) {
+      if (g.moved) setCam(clamp({ cx: g.cam0.cx - dx * g.cam0.sc, cy: g.cam0.cy - dy * g.cam0.sc, sc: g.cam0.sc }));
+    } else if (pointers.current.size === 2 && g.dist && g.mid) {
       const [a, b] = [...pointers.current.values()];
       const d = Math.hypot(a.x - b.x, a.y - b.y);
-      const k = Math.max(1, Math.min(6, g.k0! * (d / g.dist)));
-      const rect = svgRef.current!.getBoundingClientRect();
-      const mx = (g.mid.x - rect.left) * u, my = (g.mid.y - rect.top) * u;
-      const ratio = k / g.tf0.k;
-      setTf(clampTf({ k, x: mx - (mx - g.tf0.x) * ratio, y: my - (my - g.tf0.y) * ratio }));
+      zoomAt(g.cam0, g.cam0.sc * (g.dist / d), g.mid.x, g.mid.y);
     }
+  };
+  const zoomAt = (base: { cx: number; cy: number; sc: number }, sc: number, px: number, py: number) => {
+    const rect = svgRef.current!.getBoundingClientRect();
+    const ox = px - rect.left - rect.width / 2, oy = py - rect.top - rect.height / 2;
+    const bx = base.cx + ox * base.sc, by = base.cy + oy * base.sc;
+    const nsc = Math.max(minScale, Math.min(maxScale, sc));
+    setCam(clamp({ cx: bx - ox * nsc, cy: by - oy * nsc, sc: nsc }));
   };
   const onPointerUp = (e: PointerEvent) => {
     const g = gesture.current;
@@ -95,17 +126,12 @@ export function Board({ view, board, selected, targets, overlay, flash, onTap }:
   };
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
-    const rect = svgRef.current!.getBoundingClientRect();
-    const u = unitPerPx();
-    const mx = (e.clientX - rect.left) * u, my = (e.clientY - rect.top) * u;
-    const k = Math.max(1, Math.min(6, tf.k * (e.deltaY < 0 ? 1.2 : 1 / 1.2)));
-    const ratio = k / tf.k;
-    setTf(clampTf({ k, x: mx - (mx - tf.x) * ratio, y: my - (my - tf.y) * ratio }));
+    zoomAt(c, c.sc * (e.deltaY < 0 ? 1 / 1.2 : 1.2), e.clientX, e.clientY);
   };
 
   const players = useMemo(() => Object.fromEntries(view.players.map((p) => [p.id, p])), [view.players]);
-  const showNames = tf.k >= 1.7;
-  const offsets = board === 'planet' && tf.k > 1 ? [0, W] : [0];
+  const showNames = c.sc <= heightScale / 1.6;
+  const offsets = wrap ? [-W, 0, W].filter((dx) => dx + W > vx && dx < vx + vw) : [0];
 
   const renderTerritories = (dx: number) => ids.map((id) => {
     const t = view.territories[id];
@@ -133,11 +159,11 @@ export function Board({ view, board, selected, targets, overlay, flash, onTap }:
     const owner = t.owner ? players[t.owner] : null;
     const n = units(t);
     const extra = overlay?.[id] ?? 0;
-    const r = 17 / Math.sqrt(tf.k) + 3;
+    const r = Math.min(34, Math.max(10, 12 * c.sc));
     return (
       <g key={`b-${id}-${dx}`} data-tid={id} class="badge">
-        {showNames && <text x={x} y={ly - r - 6} class="tname" font-size={14 / Math.sqrt(tf.k) + 4}>{TDEF[id].name}</text>}
-        {t.devastated && <text x={x} y={ly + 5} class="devast" font-size={13}>✕</text>}
+        {showNames && <text x={x} y={ly - r - 6} class="tname" font-size={Math.min(20, 12 * c.sc)}>{TDEF[id].name}</text>}
+        {t.devastated && <text x={x} y={ly + 5} class="devast" font-size={r}>✕</text>}
         {owner && (n > 0 || t.station) && (
           <>
             <circle cx={x} cy={ly} r={r} fill={owner.color} stroke="#fff" stroke-width={2.5} />
@@ -153,7 +179,7 @@ export function Board({ view, board, selected, targets, overlay, flash, onTap }:
         {t.station && (
           <polygon points={`${x - r * 1.7},${ly - r * 0.9} ${x - r * 1.15},${ly - r * 1.55} ${x - r * 0.6},${ly - r * 0.9} ${x - r * 1.15},${ly - r * 0.25}`} fill="#22d3ee" stroke="#fff" stroke-width={1.5} />
         )}
-        {TDEF[id].landingSite && <text x={x} y={ly + r + 16} class="landing" font-size={13}>▼ Landeplatz</text>}
+        {TDEF[id].landingSite && <text x={x} y={ly + r + 16} class="landing" font-size={Math.min(30, 11 * c.sc)}>▼ Landeplatz</text>}
         {extra > 0 && (
           <g>
             <rect x={x - 18} y={ly + r + 2} width={36} height={20} rx={10} fill="#22c55e" stroke="#fff" stroke-width={1.5} />
@@ -168,8 +194,8 @@ export function Board({ view, board, selected, targets, overlay, flash, onTap }:
     <svg
       ref={svgRef}
       class={`board board-${board}`}
-      viewBox={`0 0 ${W} ${H}`}
-      preserveAspectRatio="xMidYMid meet"
+      viewBox={`${vx} ${vy} ${vw} ${vh}`}
+      preserveAspectRatio="none"
       onPointerDown={onPointerDown as never}
       onPointerMove={onPointerMove as never}
       onPointerUp={onPointerUp as never}
@@ -186,22 +212,18 @@ export function Board({ view, board, selected, targets, overlay, flash, onTap }:
           <stop offset="100%" stop-color="#0b0f19" />
         </radialGradient>
       </defs>
-      <rect x={0} y={0} width={W} height={H} fill={board === 'planet' ? '#173456' : 'url(#moonGlow)'} />
-      <g transform={`translate(${tf.x},${tf.y}) scale(${tf.k})`}>
+      <rect x={vx - 10} y={vy - 10} width={vw + 20} height={vh + 20} fill={board === 'planet' ? '#173456' : 'url(#moonGlow)'} />
+      <g>
         {offsets.map((dx) => renderTerritories(dx))}
         {offsets.map((dx) => Object.entries(GEO.regions)
           .filter(([r]) => (board === 'planet') === !['HOC', 'TEN', 'POL'].includes(r))
           .map(([r, d]) => <path key={`${r}-${dx}`} d={d} transform={dx ? `translate(${dx},0)` : undefined} fill="none" stroke="#050a14" stroke-width={4.5} stroke-opacity={0.9} pointer-events="none" />))}
-        {board === 'planet' && GEO.seaLanes.map(([a, b, p1, p2]) => (
-          <line key={a + b} x1={p1[0]} y1={p1[1]} x2={p2[0]} y2={p2[1]} stroke="#fff" stroke-width={3} stroke-dasharray="10 8" stroke-opacity={0.7} pointer-events="none" />
-        ))}
+        {board === 'planet' && offsets.flatMap((dx) => GEO.seaLanes.map(([a, b, p1, p2]) => (
+          <line key={a + b + dx} transform={`translate(${dx},0)`} x1={p1[0]} y1={p1[1]} x2={p2[0]} y2={p2[1]} stroke="#fff" stroke-width={3} stroke-dasharray="10 8" stroke-opacity={0.7} pointer-events="none" />
+        )))}
         {offsets.map((dx) => renderBadges(dx))}
       </g>
-      {board === 'planet' && tf.k === 1 && GEO.wrapLinks.length > 0 && (
-        <g class="wrapHint" pointer-events="none">
-          <text x={8} y={H - 12} font-size={22}>◀ ▶ Karte ist an Ost- und Westrand verbunden</text>
-        </g>
-      )}
+
     </svg>
   );
 }

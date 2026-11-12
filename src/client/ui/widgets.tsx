@@ -2,9 +2,9 @@ import type { ComponentChildren } from 'preact';
 import { COMMANDER_NAMES, units } from '../../engine/index.ts';
 import type { CommanderType, TerritoryState, UnitMove } from '../../engine/index.ts';
 
-export function Btn(props: { onClick?: () => void; kind?: 'primary' | 'danger' | 'ghost' | 'ok' | 'warn'; disabled?: boolean; children: ComponentChildren; small?: boolean; title?: string }) {
+export function Btn(props: { onClick?: () => void; kind?: 'primary' | 'danger' | 'ghost' | 'ok' | 'warn'; disabled?: boolean; children: ComponentChildren; small?: boolean; title?: string; type?: 'button' | 'submit' }) {
   return (
-    <button type="button" title={props.title} class={`btn ${props.kind ?? 'primary'} ${props.small ? 'small' : ''}`} disabled={props.disabled} onClick={props.onClick}>
+    <button type={props.type ?? 'button'} title={props.title} class={`btn ${props.kind ?? 'primary'} ${props.small ? 'small' : ''}`} disabled={props.disabled} onClick={props.onClick}>
       {props.children}
     </button>
   );

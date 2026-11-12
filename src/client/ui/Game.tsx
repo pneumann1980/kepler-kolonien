@@ -79,19 +79,23 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
   }, [view?.version]);
 
   // "Was ist passiert, seit ich weg war?"
+  const recapDone = useRef(false);
   useEffect(() => {
     if (!view) return;
     const k = `kk-seen-${gameId}`;
     let last = 0;
     try { last = Number(localStorage.getItem(k) ?? 0); } catch { /* */ }
     const latest = view.log.at(-1)?.seq ?? 0;
-    if (last && latest > last && !recap) {
+    const firstLoad = !recapDone.current;
+    recapDone.current = true;
+    if (firstLoad && last && latest > last && !recap) {
       const fresh = view.log.filter((e) => e.seq > last && e.player !== view.me);
       if (fresh.length >= 3) {
         setRecap({ count: fresh.length, msgs: fresh.slice(-8).map((e) => e.msg) });
         const ids = fresh.flatMap((e) => [e.data?.to, e.data?.territory].filter(Boolean) as string[]);
         setFlash([...new Set(ids)].slice(-10));
         setTimeout(() => setFlash([]), 4000);
+        setTimeout(() => setRecap(null), 12000);
       }
     }
     try { localStorage.setItem(k, String(latest)); } catch { /* */ }
@@ -206,6 +210,7 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
     }
     if (placingTotal > 0) {
       if (t.owner !== myId) return setToast('Nur in eigene Gebiete');
+      setSel(id);
       if (placed >= placingTotal) return setToast('Alle MODs verteilt – bestätigen oder zurücksetzen');
       setPlacements({ ...placements, [id]: (placements[id] ?? 0) + 1 });
       return;

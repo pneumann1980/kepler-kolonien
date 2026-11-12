@@ -36,7 +36,7 @@ export function Login({ onLogin }: { onLogin: (u: Me) => void }) {
         <label>Passwort<input type="password" value={password} autocomplete={mode === 'login' ? 'current-password' : 'new-password'} onInput={(e) => setPassword((e.target as HTMLInputElement).value)} required minLength={6} /></label>
         {mode === 'register' && <label>Einladungscode <span class="hint">(nur falls vom Server verlangt)</span><input value={code} onInput={(e) => setCode((e.target as HTMLInputElement).value)} /></label>}
         {err && <div class="error">{err}</div>}
-        <Btn kind="ok" disabled={busy}>{mode === 'login' ? 'Anmelden' : 'Profil anlegen'}</Btn>
+        <Btn kind="ok" type="submit" disabled={busy}>{mode === 'login' ? 'Anmelden' : 'Profil anlegen'}</Btn>
       </form>
       <p class="hint center">Tipp: Über „Zum Home-Bildschirm hinzufügen“ wird das Spiel zur App (nötig für Push auf iOS).</p>
     </div>
@@ -76,7 +76,7 @@ export function Lobby({ me, live, navigate }: { me: Me; live: Live; navigate: (p
           <div><b>Hallo {me.name}!</b> <span class="hint">{me.stats.played} Partien · {me.stats.won} Siege</span></div>
           <Btn kind="ok" onClick={() => setShowCreate(!showCreate)}>{showCreate ? 'Schließen' : '+ Neue Partie'}</Btn>
         </div>
-        {showCreate && <CreateGame onCreated={(id) => { setShowCreate(false); load(); navigate(`/game/${id}`); }} />}
+        {showCreate && <CreateGame onCreated={() => { setShowCreate(false); load(); }} />}
         <Section title="Meine Partien" empty="Noch keine Partie – lege eine an oder tritt einer offenen bei.">
           {mine.map((g) => <GameCard key={g.id} g={g} me={me} act={act} navigate={navigate} />)}
         </Section>
