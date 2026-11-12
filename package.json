@@ -1,0 +1,28 @@
+{
+  "name": "kepler-kolonien",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Selbst gehosteter Multiplayer-Server für ein rundenbasiertes Strategiespiel mit Smartphone-Clients (PWA).",
+  "type": "module",
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "build": "node scripts/build-client.mjs",
+    "start": "node --disable-warning=ExperimentalWarning src/server/main.ts",
+    "dev": "npm run build && node --disable-warning=ExperimentalWarning --watch-path=src/server --watch-path=src/engine src/server/main.ts",
+    "test": "node --disable-warning=ExperimentalWarning --test \"tests/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "sim": "node src/tools/simulate.ts"
+  },
+  "dependencies": {
+    "web-push": "^3.6.7",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/web-push": "^3.6.4",
+    "@types/ws": "^8.18.1",
+    "esbuild": "^0.25.10",
+    "preact": "^10.27.2",
+    "typescript": "^5.9.3"
+  }
+}

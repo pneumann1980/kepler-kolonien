@@ -603,6 +603,40 @@ if __name__ == "__main__":
     with open(os.path.join(OUT, "map.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
+    # Geometrie für den Spiel-Client (vereinfachte Pfade, ganzzahlige Koordinaten)
+    def compact_path(geom, tol=0.6):
+        g = geom.simplify(tol, preserve_topology=True)
+        polys = list(g.geoms) if isinstance(g, MultiPolygon) else [g]
+        out = []
+        for poly in polys:
+            for ring in [poly.exterior, *poly.interiors]:
+                pts = list(ring.coords)[:-1]
+                out.append("M" + "L".join(f"{round(x)},{round(y)}" for x, y in pts) + "Z")
+        return "".join(out)
+
+    geometry = {
+        "schema": "geometry/v1",
+        "boards": {"planet": {"width": W, "height": H}, "moon": {"width": MW, "height": MH, "radius": MR}},
+        "territories": {t["id"]: {"d": compact_path(t["geom"]),
+                                   "label": [round(v) for v in label_point(t["geom"])]} for t in all_t},
+        "regions": {},
+        "seaLanes": [[a, b, [round(v) for v in label_point(tmap_all[a]["geom"])],
+                      [round(v) for v in label_point(tmap_all[b]["geom"])]] for a, b in sea_lanes],
+        "wrapLinks": [[a, b, round(y)] for a, b, y in edge_links],
+    }
+    for reg in [c[0] for c in CONTINENTS] + [m[0] for m in MOON_COLONIES]:
+        g = unary_union([t["geom"].buffer(0.5) for t in all_t if t["region"] == reg])
+        geometry["regions"][reg] = compact_path(g, 1.0)
+    geo_out = os.environ.get("GEOMETRY_OUT")
+    targets = [OUT] + ([geo_out] if geo_out else [])
+    for target in targets:
+        os.makedirs(target, exist_ok=True)
+        with open(os.path.join(target, "geometry.json"), "w", encoding="utf-8") as f:
+            json.dump(geometry, f, ensure_ascii=False, separators=(",", ":"))
+        if target != OUT:
+            with open(os.path.join(target, "map.json"), "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+
     # Kurzbericht
     print("Territorien:", {k: sum(1 for t in all_t if t['type'] == k) for k in ('land', 'water', 'moon')})
     print("Boni:", bonuses)

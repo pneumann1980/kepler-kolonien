@@ -1,0 +1,1446 @@
+{
+  "schema": "map/v1",
+  "id": "kepler-colonies",
+  "name": "Kepler-Kolonien",
+  "generator": {
+    "script": "tools/board-generator/generate_board.py",
+    "seed": 2210
+  },
+  "boards": [
+    {
+      "id": "planet",
+      "width": 2000,
+      "height": 1000,
+      "svg": "planet.svg",
+      "wrapX": true
+    },
+    {
+      "id": "moon",
+      "width": 1000,
+      "height": 1000,
+      "svg": "moon.svg"
+    }
+  ],
+  "regions": [
+    {
+      "id": "BOR",
+      "name": "Borea",
+      "kind": "continent",
+      "bonus": 4,
+      "borderTerritories": 2
+    },
+    {
+      "id": "VEL",
+      "name": "Vellor",
+      "kind": "continent",
+      "bonus": 4,
+      "borderTerritories": 2
+    },
+    {
+      "id": "KAS",
+      "name": "Kaskadia",
+      "kind": "continent",
+      "bonus": 6,
+      "borderTerritories": 4
+    },
+    {
+      "id": "MER",
+      "name": "Meridia",
+      "kind": "continent",
+      "bonus": 3,
+      "borderTerritories": 1
+    },
+    {
+      "id": "SAH",
+      "name": "Sahari",
+      "kind": "continent",
+      "bonus": 3,
+      "borderTerritories": 1
+    },
+    {
+      "id": "INS",
+      "name": "Insula",
+      "kind": "continent",
+      "bonus": 2,
+      "borderTerritories": 1
+    },
+    {
+      "id": "NOR",
+      "name": "Nordmeer",
+      "kind": "waterColony",
+      "bonus": 2,
+      "borderTerritories": 2
+    },
+    {
+      "id": "PEL",
+      "name": "Pelagia",
+      "kind": "waterColony",
+      "bonus": 2,
+      "borderTerritories": 3
+    },
+    {
+      "id": "ABY",
+      "name": "Abyssos",
+      "kind": "waterColony",
+      "bonus": 2,
+      "borderTerritories": 2
+    },
+    {
+      "id": "KOR",
+      "name": "Korallensee",
+      "kind": "waterColony",
+      "bonus": 2,
+      "borderTerritories": 2
+    },
+    {
+      "id": "SUD",
+      "name": "Südmeer",
+      "kind": "waterColony",
+      "bonus": 2,
+      "borderTerritories": 2
+    },
+    {
+      "id": "HOC",
+      "name": "Selene-Hochland",
+      "kind": "lunarColony",
+      "bonus": 4,
+      "borderTerritories": 3
+    },
+    {
+      "id": "TEN",
+      "name": "Mare Tenebris",
+      "kind": "lunarColony",
+      "bonus": 3,
+      "borderTerritories": 4
+    },
+    {
+      "id": "POL",
+      "name": "Polarkappe",
+      "kind": "lunarColony",
+      "bonus": 2,
+      "borderTerritories": 2
+    }
+  ],
+  "territories": [
+    {
+      "id": "BOR-1",
+      "name": "Frostkamm",
+      "type": "land",
+      "region": "BOR",
+      "board": "planet",
+      "label": [
+        441,
+        120
+      ],
+      "adjacent": [
+        "BOR-2",
+        "BOR-4",
+        "BOR-5",
+        "NOR-1",
+        "PEL-2"
+      ]
+    },
+    {
+      "id": "BOR-2",
+      "name": "Weißfels",
+      "type": "land",
+      "region": "BOR",
+      "board": "planet",
+      "label": [
+        582,
+        130
+      ],
+      "adjacent": [
+        "BOR-1",
+        "BOR-5",
+        "BOR-6",
+        "BOR-9",
+        "NOR-1"
+      ]
+    },
+    {
+      "id": "BOR-3",
+      "name": "Kaltmark",
+      "type": "land",
+      "region": "BOR",
+      "board": "planet",
+      "label": [
+        146,
+        300
+      ],
+      "adjacent": [
+        "BOR-4",
+        "BOR-7",
+        "PEL-2",
+        "PEL-3"
+      ]
+    },
+    {
+      "id": "BOR-4",
+      "name": "Nordwacht",
+      "type": "land",
+      "region": "BOR",
+      "board": "planet",
+      "label": [
+        274,
+        189
+      ],
+      "adjacent": [
+        "BOR-1",
+        "BOR-3",
+        "BOR-5",
+        "BOR-7",
+        "BOR-8",
+        "PEL-2"
+      ]
+    },
+    {
+      "id": "BOR-5",
+      "name": "Eisgrund",
+      "type": "land",
+      "region": "BOR",
+      "board": "planet",
+      "label": [
+        472,
+        227
+      ],
+      "adjacent": [
+        "BOR-1",
+        "BOR-2",
+        "BOR-4",
+        "BOR-8",
+        "BOR-9"
+      ]
+    },
+    {
+      "id": "BOR-6",
+      "name": "Sturmhafen",
+      "type": "land",
+      "region": "BOR",
+      "board": "planet",
+      "label": [
+        758,
+        286
+      ],
+      "adjacent": [
+        "ABY-2",
+        "BOR-2",
+        "BOR-9",
+        "KAS-2",
+        "KAS-3",
+        "NOR-1",
+        "NOR-2"
+      ]
+    },
+    {
+      "id": "BOR-7",
+      "name": "Fjordland",
+      "type": "land",
+      "region": "BOR",
+      "board": "planet",
+      "label": [
+        243,
+        334
+      ],
+      "adjacent": [
+        "BOR-3",
+        "BOR-4",
+        "BOR-8",
+        "PEL-3"
+      ]
+    },
+    {
+      "id": "BOR-8",
+      "name": "Grauheide",
+      "type": "land",
+      "region": "BOR",
+      "board": "planet",
+      "label": [
+        368,
+        304
+      ],
+      "adjacent": [
+        "ABY-1",
+        "BOR-4",
+        "BOR-5",
+        "BOR-7",
+        "BOR-9",
+        "MER-3",
+        "PEL-3"
+      ]
+    },
+    {
+      "id": "BOR-9",
+      "name": "Polarnest",
+      "type": "land",
+      "region": "BOR",
+      "board": "planet",
+      "label": [
+        581,
+        315
+      ],
+      "adjacent": [
+        "ABY-1",
+        "ABY-2",
+        "BOR-2",
+        "BOR-5",
+        "BOR-6",
+        "BOR-8"
+      ]
+    },
+    {
+      "id": "VEL-1",
+      "name": "Aschental",
+      "type": "land",
+      "region": "VEL",
+      "board": "planet",
+      "label": [
+        1266,
+        187
+      ],
+      "adjacent": [
+        "NOR-1",
+        "NOR-2",
+        "VEL-2",
+        "VEL-4",
+        "VEL-6"
+      ]
+    },
+    {
+      "id": "VEL-2",
+      "name": "Glutmark",
+      "type": "land",
+      "region": "VEL",
+      "board": "planet",
+      "label": [
+        1447,
+        123
+      ],
+      "adjacent": [
+        "NOR-1",
+        "VEL-1",
+        "VEL-3",
+        "VEL-4"
+      ]
+    },
+    {
+      "id": "VEL-3",
+      "name": "Rubinfeld",
+      "type": "land",
+      "region": "VEL",
+      "board": "planet",
+      "label": [
+        1559,
+        176
+      ],
+      "adjacent": [
+        "NOR-1",
+        "NOR-3",
+        "VEL-2",
+        "VEL-4",
+        "VEL-5",
+        "VEL-7"
+      ]
+    },
+    {
+      "id": "VEL-4",
+      "name": "Sonnwacht",
+      "type": "land",
+      "region": "VEL",
+      "board": "planet",
+      "label": [
+        1418,
+        245
+      ],
+      "adjacent": [
+        "VEL-1",
+        "VEL-2",
+        "VEL-3",
+        "VEL-6",
+        "VEL-7"
+      ]
+    },
+    {
+      "id": "VEL-5",
+      "name": "Kupferhang",
+      "type": "land",
+      "region": "VEL",
+      "board": "planet",
+      "label": [
+        1757,
+        203
+      ],
+      "adjacent": [
+        "NOR-3",
+        "VEL-3",
+        "VEL-7"
+      ]
+    },
+    {
+      "id": "VEL-6",
+      "name": "Feuerkap",
+      "type": "land",
+      "region": "VEL",
+      "board": "planet",
+      "label": [
+        1360,
+        334
+      ],
+      "adjacent": [
+        "KAS-5",
+        "KOR-2",
+        "NOR-2",
+        "VEL-1",
+        "VEL-4",
+        "VEL-7"
+      ]
+    },
+    {
+      "id": "VEL-7",
+      "name": "Salzpfanne",
+      "type": "land",
+      "region": "VEL",
+      "board": "planet",
+      "label": [
+        1624,
+        292
+      ],
+      "adjacent": [
+        "INS-1",
+        "KOR-2",
+        "NOR-3",
+        "VEL-3",
+        "VEL-4",
+        "VEL-5",
+        "VEL-6"
+      ]
+    },
+    {
+      "id": "KAS-1",
+      "name": "Hochplateau",
+      "type": "land",
+      "region": "KAS",
+      "board": "planet",
+      "label": [
+        1126,
+        350
+      ],
+      "adjacent": [
+        "KAS-4",
+        "KAS-5",
+        "KAS-7",
+        "NOR-2"
+      ]
+    },
+    {
+      "id": "KAS-2",
+      "name": "Zinnberg",
+      "type": "land",
+      "region": "KAS",
+      "board": "planet",
+      "label": [
+        797,
+        452
+      ],
+      "adjacent": [
+        "ABY-2",
+        "BOR-6",
+        "KAS-3",
+        "KAS-6",
+        "KAS-9"
+      ]
+    },
+    {
+      "id": "KAS-3",
+      "name": "Steinwall",
+      "type": "land",
+      "region": "KAS",
+      "board": "planet",
+      "label": [
+        861,
+        357
+      ],
+      "adjacent": [
+        "BOR-6",
+        "KAS-2",
+        "KAS-4",
+        "KAS-6",
+        "NOR-2"
+      ]
+    },
+    {
+      "id": "KAS-4",
+      "name": "Talsperre",
+      "type": "land",
+      "region": "KAS",
+      "board": "planet",
+      "label": [
+        975,
+        377
+      ],
+      "adjacent": [
+        "KAS-1",
+        "KAS-3",
+        "KAS-6",
+        "KAS-7",
+        "NOR-2"
+      ]
+    },
+    {
+      "id": "KAS-5",
+      "name": "Schluchten",
+      "type": "land",
+      "region": "KAS",
+      "board": "planet",
+      "label": [
+        1190,
+        437
+      ],
+      "adjacent": [
+        "KAS-1",
+        "KAS-7",
+        "KAS-8",
+        "KOR-1",
+        "KOR-2",
+        "NOR-2",
+        "VEL-6"
+      ]
+    },
+    {
+      "id": "KAS-6",
+      "name": "Basaltkrone",
+      "type": "land",
+      "region": "KAS",
+      "board": "planet",
+      "label": [
+        947,
+        541
+      ],
+      "adjacent": [
+        "KAS-10",
+        "KAS-2",
+        "KAS-3",
+        "KAS-4",
+        "KAS-7",
+        "KAS-9"
+      ]
+    },
+    {
+      "id": "KAS-7",
+      "name": "Erzhügel",
+      "type": "land",
+      "region": "KAS",
+      "board": "planet",
+      "label": [
+        1049,
+        457
+      ],
+      "adjacent": [
+        "KAS-1",
+        "KAS-10",
+        "KAS-4",
+        "KAS-5",
+        "KAS-6",
+        "KAS-8"
+      ]
+    },
+    {
+      "id": "KAS-8",
+      "name": "Kraterfeld",
+      "type": "land",
+      "region": "KAS",
+      "board": "planet",
+      "label": [
+        1084,
+        580
+      ],
+      "adjacent": [
+        "KAS-10",
+        "KAS-5",
+        "KAS-7",
+        "KOR-1"
+      ]
+    },
+    {
+      "id": "KAS-9",
+      "name": "Silberpass",
+      "type": "land",
+      "region": "KAS",
+      "board": "planet",
+      "label": [
+        905,
+        658
+      ],
+      "adjacent": [
+        "ABY-2",
+        "ABY-3",
+        "KAS-10",
+        "KAS-2",
+        "KAS-6"
+      ]
+    },
+    {
+      "id": "KAS-10",
+      "name": "Donnerkamm",
+      "type": "land",
+      "region": "KAS",
+      "board": "planet",
+      "label": [
+        1021,
+        669
+      ],
+      "adjacent": [
+        "ABY-3",
+        "KAS-6",
+        "KAS-7",
+        "KAS-8",
+        "KAS-9",
+        "KOR-1",
+        "SAH-1"
+      ]
+    },
+    {
+      "id": "MER-1",
+      "name": "Grünhain",
+      "type": "land",
+      "region": "MER",
+      "board": "planet",
+      "label": [
+        227,
+        664
+      ],
+      "adjacent": [
+        "MER-2",
+        "MER-5",
+        "PEL-1",
+        "PEL-3"
+      ]
+    },
+    {
+      "id": "MER-2",
+      "name": "Nebelwald",
+      "type": "land",
+      "region": "MER",
+      "board": "planet",
+      "label": [
+        364,
+        650
+      ],
+      "adjacent": [
+        "MER-1",
+        "MER-3",
+        "MER-4",
+        "MER-5",
+        "PEL-3"
+      ]
+    },
+    {
+      "id": "MER-3",
+      "name": "Regenbruch",
+      "type": "land",
+      "region": "MER",
+      "board": "planet",
+      "label": [
+        489,
+        590
+      ],
+      "adjacent": [
+        "ABY-1",
+        "ABY-3",
+        "BOR-8",
+        "MER-2",
+        "MER-4",
+        "PEL-3"
+      ]
+    },
+    {
+      "id": "MER-4",
+      "name": "Lianenhof",
+      "type": "land",
+      "region": "MER",
+      "board": "planet",
+      "label": [
+        521,
+        725
+      ],
+      "adjacent": [
+        "ABY-3",
+        "MER-2",
+        "MER-3",
+        "MER-5",
+        "MER-6",
+        "SUD-1"
+      ]
+    },
+    {
+      "id": "MER-5",
+      "name": "Moorstadt",
+      "type": "land",
+      "region": "MER",
+      "board": "planet",
+      "label": [
+        370,
+        818
+      ],
+      "adjacent": [
+        "MER-1",
+        "MER-2",
+        "MER-4",
+        "MER-6",
+        "PEL-1",
+        "SUD-1"
+      ]
+    },
+    {
+      "id": "MER-6",
+      "name": "Smaragdbucht",
+      "type": "land",
+      "region": "MER",
+      "board": "planet",
+      "label": [
+        455,
+        906
+      ],
+      "adjacent": [
+        "MER-4",
+        "MER-5",
+        "SUD-1"
+      ]
+    },
+    {
+      "id": "SAH-1",
+      "name": "Dünenmeer",
+      "type": "land",
+      "region": "SAH",
+      "board": "planet",
+      "label": [
+        1041,
+        765
+      ],
+      "adjacent": [
+        "ABY-3",
+        "KAS-10",
+        "KOR-1",
+        "SAH-3",
+        "SAH-4",
+        "SAH-5"
+      ]
+    },
+    {
+      "id": "SAH-2",
+      "name": "Sandtor",
+      "type": "land",
+      "region": "SAH",
+      "board": "planet",
+      "label": [
+        872,
+        837
+      ],
+      "adjacent": [
+        "ABY-3",
+        "SAH-3",
+        "SUD-1",
+        "SUD-2"
+      ]
+    },
+    {
+      "id": "SAH-3",
+      "name": "Oasenring",
+      "type": "land",
+      "region": "SAH",
+      "board": "planet",
+      "label": [
+        989,
+        854
+      ],
+      "adjacent": [
+        "ABY-3",
+        "SAH-1",
+        "SAH-2",
+        "SAH-4",
+        "SUD-2"
+      ]
+    },
+    {
+      "id": "SAH-4",
+      "name": "Glasebene",
+      "type": "land",
+      "region": "SAH",
+      "board": "planet",
+      "label": [
+        1152,
+        830
+      ],
+      "adjacent": [
+        "SAH-1",
+        "SAH-3",
+        "SAH-5",
+        "SAH-6",
+        "SUD-2"
+      ]
+    },
+    {
+      "id": "SAH-5",
+      "name": "Staubkessel",
+      "type": "land",
+      "region": "SAH",
+      "board": "planet",
+      "label": [
+        1263,
+        797
+      ],
+      "adjacent": [
+        "KOR-1",
+        "SAH-1",
+        "SAH-4",
+        "SAH-6",
+        "SUD-2"
+      ]
+    },
+    {
+      "id": "SAH-6",
+      "name": "Mirage",
+      "type": "land",
+      "region": "SAH",
+      "board": "planet",
+      "label": [
+        1286,
+        894
+      ],
+      "adjacent": [
+        "SAH-4",
+        "SAH-5",
+        "SUD-2"
+      ]
+    },
+    {
+      "id": "INS-1",
+      "name": "Korallen",
+      "type": "land",
+      "region": "INS",
+      "board": "planet",
+      "label": [
+        1644,
+        668
+      ],
+      "adjacent": [
+        "INS-2",
+        "INS-4",
+        "KOR-1",
+        "KOR-2",
+        "VEL-7"
+      ]
+    },
+    {
+      "id": "INS-2",
+      "name": "Perlriff",
+      "type": "land",
+      "region": "INS",
+      "board": "planet",
+      "label": [
+        1764,
+        689
+      ],
+      "adjacent": [
+        "INS-1",
+        "INS-3",
+        "INS-4",
+        "KOR-2"
+      ]
+    },
+    {
+      "id": "INS-3",
+      "name": "Lagune",
+      "type": "land",
+      "region": "INS",
+      "board": "planet",
+      "label": [
+        1886,
+        752
+      ],
+      "adjacent": [
+        "INS-2",
+        "INS-4",
+        "KOR-2",
+        "SUD-2"
+      ]
+    },
+    {
+      "id": "INS-4",
+      "name": "Atollia",
+      "type": "land",
+      "region": "INS",
+      "board": "planet",
+      "label": [
+        1615,
+        805
+      ],
+      "adjacent": [
+        "INS-1",
+        "INS-2",
+        "INS-3",
+        "KOR-1",
+        "SUD-2"
+      ]
+    },
+    {
+      "id": "NOR-1",
+      "name": "Eisrinne",
+      "type": "water",
+      "region": "NOR",
+      "board": "planet",
+      "label": [
+        746,
+        102
+      ],
+      "adjacent": [
+        "BOR-1",
+        "BOR-2",
+        "BOR-6",
+        "NOR-2",
+        "NOR-3",
+        "PEL-2",
+        "VEL-1",
+        "VEL-2",
+        "VEL-3"
+      ]
+    },
+    {
+      "id": "NOR-2",
+      "name": "Walgraben",
+      "type": "water",
+      "region": "NOR",
+      "board": "planet",
+      "label": [
+        1062,
+        166
+      ],
+      "adjacent": [
+        "BOR-6",
+        "KAS-1",
+        "KAS-3",
+        "KAS-4",
+        "KAS-5",
+        "NOR-1",
+        "VEL-1",
+        "VEL-6"
+      ]
+    },
+    {
+      "id": "NOR-3",
+      "name": "Polarstrom",
+      "type": "water",
+      "region": "NOR",
+      "board": "planet",
+      "label": [
+        1859,
+        403
+      ],
+      "adjacent": [
+        "KOR-2",
+        "NOR-1",
+        "PEL-2",
+        "PEL-3",
+        "VEL-3",
+        "VEL-5",
+        "VEL-7"
+      ]
+    },
+    {
+      "id": "PEL-1",
+      "name": "Tangwald",
+      "type": "water",
+      "region": "PEL",
+      "board": "planet",
+      "label": [
+        95,
+        869
+      ],
+      "adjacent": [
+        "KOR-2",
+        "MER-1",
+        "MER-5",
+        "PEL-3",
+        "SUD-1",
+        "SUD-2"
+      ]
+    },
+    {
+      "id": "PEL-2",
+      "name": "Schwarzwasser",
+      "type": "water",
+      "region": "PEL",
+      "board": "planet",
+      "label": [
+        92,
+        92
+      ],
+      "adjacent": [
+        "BOR-1",
+        "BOR-3",
+        "BOR-4",
+        "NOR-1",
+        "NOR-3",
+        "PEL-3"
+      ]
+    },
+    {
+      "id": "PEL-3",
+      "name": "Mahlstrom",
+      "type": "water",
+      "region": "PEL",
+      "board": "planet",
+      "label": [
+        172,
+        484
+      ],
+      "adjacent": [
+        "ABY-1",
+        "BOR-3",
+        "BOR-7",
+        "BOR-8",
+        "KOR-2",
+        "MER-1",
+        "MER-2",
+        "MER-3",
+        "NOR-3",
+        "PEL-1",
+        "PEL-2"
+      ]
+    },
+    {
+      "id": "ABY-1",
+      "name": "Abyssal-Tor",
+      "type": "water",
+      "region": "ABY",
+      "board": "planet",
+      "label": [
+        537,
+        456
+      ],
+      "adjacent": [
+        "ABY-2",
+        "ABY-3",
+        "BOR-8",
+        "BOR-9",
+        "MER-3",
+        "PEL-3"
+      ]
+    },
+    {
+      "id": "ABY-2",
+      "name": "Tiefseegraben",
+      "type": "water",
+      "region": "ABY",
+      "board": "planet",
+      "label": [
+        700,
+        546
+      ],
+      "adjacent": [
+        "ABY-1",
+        "ABY-3",
+        "BOR-6",
+        "BOR-9",
+        "KAS-2",
+        "KAS-9"
+      ]
+    },
+    {
+      "id": "ABY-3",
+      "name": "Schlote",
+      "type": "water",
+      "region": "ABY",
+      "board": "planet",
+      "label": [
+        716,
+        696
+      ],
+      "adjacent": [
+        "ABY-1",
+        "ABY-2",
+        "KAS-10",
+        "KAS-9",
+        "MER-3",
+        "MER-4",
+        "SAH-1",
+        "SAH-2",
+        "SAH-3",
+        "SUD-1"
+      ]
+    },
+    {
+      "id": "KOR-1",
+      "name": "Riffbank",
+      "type": "water",
+      "region": "KOR",
+      "board": "planet",
+      "label": [
+        1375,
+        613
+      ],
+      "adjacent": [
+        "INS-1",
+        "INS-4",
+        "KAS-10",
+        "KAS-5",
+        "KAS-8",
+        "KOR-2",
+        "SAH-1",
+        "SAH-5",
+        "SUD-2"
+      ]
+    },
+    {
+      "id": "KOR-2",
+      "name": "Perlgrund",
+      "type": "water",
+      "region": "KOR",
+      "board": "planet",
+      "label": [
+        1634,
+        480
+      ],
+      "adjacent": [
+        "INS-1",
+        "INS-2",
+        "INS-3",
+        "KAS-5",
+        "KOR-1",
+        "NOR-3",
+        "PEL-1",
+        "PEL-3",
+        "SUD-2",
+        "VEL-6",
+        "VEL-7"
+      ]
+    },
+    {
+      "id": "SUD-1",
+      "name": "Sturmsee",
+      "type": "water",
+      "region": "SUD",
+      "board": "planet",
+      "label": [
+        654,
+        885
+      ],
+      "adjacent": [
+        "ABY-3",
+        "MER-4",
+        "MER-5",
+        "MER-6",
+        "PEL-1",
+        "SAH-2",
+        "SUD-2"
+      ]
+    },
+    {
+      "id": "SUD-2",
+      "name": "Südstrom",
+      "type": "water",
+      "region": "SUD",
+      "board": "planet",
+      "label": [
+        1884,
+        912
+      ],
+      "adjacent": [
+        "INS-3",
+        "INS-4",
+        "KOR-1",
+        "KOR-2",
+        "PEL-1",
+        "SAH-2",
+        "SAH-3",
+        "SAH-4",
+        "SAH-5",
+        "SAH-6",
+        "SUD-1"
+      ]
+    },
+    {
+      "id": "HOC-1",
+      "name": "Landeplatz Alpha",
+      "type": "moon",
+      "region": "HOC",
+      "board": "moon",
+      "landingSite": true,
+      "label": [
+        532,
+        133
+      ],
+      "adjacent": [
+        "HOC-2",
+        "HOC-3",
+        "HOC-4",
+        "HOC-6"
+      ]
+    },
+    {
+      "id": "HOC-2",
+      "name": "Lichtkrater",
+      "type": "moon",
+      "region": "HOC",
+      "board": "moon",
+      "label": [
+        192,
+        313
+      ],
+      "adjacent": [
+        "HOC-1",
+        "HOC-3",
+        "HOC-6",
+        "POL-2"
+      ]
+    },
+    {
+      "id": "HOC-3",
+      "name": "Hochebene",
+      "type": "moon",
+      "region": "HOC",
+      "board": "moon",
+      "label": [
+        400,
+        267
+      ],
+      "adjacent": [
+        "HOC-1",
+        "HOC-2",
+        "HOC-6"
+      ]
+    },
+    {
+      "id": "HOC-4",
+      "name": "Kraterrand",
+      "type": "moon",
+      "region": "HOC",
+      "board": "moon",
+      "label": [
+        707,
+        199
+      ],
+      "adjacent": [
+        "HOC-1",
+        "HOC-5",
+        "HOC-6"
+      ]
+    },
+    {
+      "id": "HOC-5",
+      "name": "Spiegelfeld",
+      "type": "moon",
+      "region": "HOC",
+      "board": "moon",
+      "label": [
+        822,
+        310
+      ],
+      "adjacent": [
+        "HOC-4",
+        "HOC-6",
+        "TEN-1",
+        "TEN-2"
+      ]
+    },
+    {
+      "id": "HOC-6",
+      "name": "Sternwarte",
+      "type": "moon",
+      "region": "HOC",
+      "board": "moon",
+      "label": [
+        505,
+        455
+      ],
+      "adjacent": [
+        "HOC-1",
+        "HOC-2",
+        "HOC-3",
+        "HOC-4",
+        "HOC-5",
+        "POL-2",
+        "POL-3",
+        "TEN-2",
+        "TEN-4"
+      ]
+    },
+    {
+      "id": "TEN-1",
+      "name": "Landeplatz Beta",
+      "type": "moon",
+      "region": "TEN",
+      "board": "moon",
+      "landingSite": true,
+      "label": [
+        793,
+        710
+      ],
+      "adjacent": [
+        "HOC-5",
+        "TEN-2",
+        "TEN-3",
+        "TEN-4"
+      ]
+    },
+    {
+      "id": "TEN-2",
+      "name": "Schattenmeer",
+      "type": "moon",
+      "region": "TEN",
+      "board": "moon",
+      "label": [
+        734,
+        524
+      ],
+      "adjacent": [
+        "HOC-5",
+        "HOC-6",
+        "TEN-1",
+        "TEN-4"
+      ]
+    },
+    {
+      "id": "TEN-3",
+      "name": "Staubbecken",
+      "type": "moon",
+      "region": "TEN",
+      "board": "moon",
+      "label": [
+        573,
+        867
+      ],
+      "adjacent": [
+        "POL-3",
+        "TEN-1",
+        "TEN-4"
+      ]
+    },
+    {
+      "id": "TEN-4",
+      "name": "Grabenbruch",
+      "type": "moon",
+      "region": "TEN",
+      "board": "moon",
+      "label": [
+        610,
+        666
+      ],
+      "adjacent": [
+        "HOC-6",
+        "POL-3",
+        "TEN-1",
+        "TEN-2",
+        "TEN-3"
+      ]
+    },
+    {
+      "id": "POL-1",
+      "name": "Landeplatz Gamma",
+      "type": "moon",
+      "region": "POL",
+      "board": "moon",
+      "landingSite": true,
+      "label": [
+        140,
+        611
+      ],
+      "adjacent": [
+        "POL-2",
+        "POL-3",
+        "POL-4"
+      ]
+    },
+    {
+      "id": "POL-2",
+      "name": "Eiskrater",
+      "type": "moon",
+      "region": "POL",
+      "board": "moon",
+      "label": [
+        173,
+        469
+      ],
+      "adjacent": [
+        "HOC-2",
+        "HOC-6",
+        "POL-1",
+        "POL-3"
+      ]
+    },
+    {
+      "id": "POL-3",
+      "name": "Kryobasis",
+      "type": "moon",
+      "region": "POL",
+      "board": "moon",
+      "label": [
+        411,
+        605
+      ],
+      "adjacent": [
+        "HOC-6",
+        "POL-1",
+        "POL-2",
+        "POL-4",
+        "TEN-3",
+        "TEN-4"
+      ]
+    },
+    {
+      "id": "POL-4",
+      "name": "Dunkelseite",
+      "type": "moon",
+      "region": "POL",
+      "board": "moon",
+      "label": [
+        298,
+        772
+      ],
+      "adjacent": [
+        "POL-1",
+        "POL-3"
+      ]
+    }
+  ],
+  "seaLanes": [
+    [
+      "BOR-8",
+      "MER-3"
+    ],
+    [
+      "VEL-7",
+      "INS-1"
+    ]
+  ],
+  "wrapLinks": [
+    [
+      "PEL-1",
+      "KOR-2"
+    ],
+    [
+      "PEL-1",
+      "SUD-2"
+    ],
+    [
+      "PEL-2",
+      "NOR-3"
+    ],
+    [
+      "PEL-3",
+      "NOR-3"
+    ],
+    [
+      "PEL-3",
+      "KOR-2"
+    ]
+  ],
+  "specialLinks": [
+    {
+      "kind": "orbital",
+      "from": "anySpaceStation",
+      "to": "landingSites",
+      "requires": "spaceCommanderInPlay"
+    }
+  ]
+}
