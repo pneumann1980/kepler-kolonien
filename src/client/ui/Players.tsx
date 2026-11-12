@@ -1,3 +1,4 @@
+import { rn } from '../names.ts';
 import { COMMANDER_TYPES, COMMANDER_SHORT, COMMANDER_NAMES, RDEF, owned, totalUnits, commanderInPlay, stationCount, controlledRegions } from '../../engine/index.ts';
 import type { GameState } from '../../engine/index.ts';
 import type { GameView } from '../api.ts';
@@ -34,7 +35,7 @@ export function Players({ view }: { view: GameView }) {
                   <span title="Handkarten nach Deck (öffentlich)">🂠 {COMMANDER_TYPES.filter((d) => counts[d]).map((d) => `${counts[d]}${COMMANDER_SHORT[d]}`).join(' ') || '0'}</span>
                 </div>
               )}
-              {regions.length > 0 && <div class="hint">Kontrolliert: {regions.map((r) => `${RDEF[r].name} (+${RDEF[r].bonus})`).join(', ')}</div>}
+              {regions.length > 0 && <div class="hint">Kontrolliert: {regions.map((r) => `${rn(r)} (+${RDEF[r].bonus})`).join(', ')}</div>}
             </div>
           );
         })}

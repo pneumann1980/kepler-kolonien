@@ -1,6 +1,7 @@
 // E2E: Karten-Szenarien im Browser (benötigt Server mit ENABLE_TEST_API=1).
 // Prüft Gesamtansicht, Legende, Antippen kleiner Wasserfelder, Landpassage ohne Marine, Wasserangriff ohne/mit Marine,
-// Mondlandung von einer Station, Truppenbewegung vom Mond zurück, Kartenumlauf, Tablet-Querformat.
+// Mondlandung von einer Station, Truppenbewegung vom Mond zurück, Beringstraße über den Kartenrand, Tablet-Querformat,
+// alte Partie (Kartenrevision 2) mit unveränderter Karte.
 // Aufruf: node tests/e2e/map-scenarios.cjs [BASE_URL] [SCREENSHOT_DIR]
 const { chromium, devices } = require('playwright');
 const fs = require('fs');
@@ -38,7 +39,8 @@ const USER = 'Karla' + Math.floor(Math.random() * 9000 + 1000);
       if (!bb) continue;
       const cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2;
       if (cx < box.x + 4 || cx > box.x + box.width - 52 || cy < box.y + 46 || cy > box.y + box.height - 4) continue;
-      const score = (cls.includes('landing') ? 4 : cls.includes('hit') ? 3 : 2);
+      const water = /^(NOR|PEL|ABY|KOR|SUD)-/.test(tid);   // Trefferflächen nur bei Wasserfeldern bevorzugen (Land: Marker liegt sicher im Gebiet)
+      const score = (cls.includes('landing') ? 4 : cls.includes('hit') ? (water ? 3 : 1) : 2);
       if (!best || score > best.score) best = { cx, cy, score };
     }
     assert.ok(best, `Gebiet ${tid} nicht sichtbar`);
@@ -91,16 +93,20 @@ const USER = 'Karla' + Math.floor(Math.random() * 9000 + 1000);
   const me = s.players.find((p) => !p.isBot).id;
   const bot = s.players.find((p) => p.isBot).id;
   const bot2 = s.players.filter((p) => p.isBot)[1].id;
-  assert.equal(s.mapId, 'kepler-colonies-2', 'neue Partie nutzt Kartenrevision 2');
+  assert.equal(s.mapId, 'kepler-earth-3', 'neue Partie nutzt Kartenrevision 3 (Erde & Mond)');
 
   // ---------------------------------------------------------------- 1. Gesamtansicht + Legende
   await page.waitForTimeout(600);
   const labels = await page.locator('svg.board .rlabel text').allTextContents();
-  for (const name of ['Borea +4', 'Vellor +4', 'Kaskadia +6', 'Meridia +3', 'Sahari +3', 'Insula +2', 'Nordmeer +2', 'Pelagia +2', 'Abyssos +2', 'Korallensee +2', 'Südmeer +2']) {
-    assert.ok(labels.some((t) => t.startsWith(name)), `Regionslabel ${name} in der Gesamtansicht`);
+  for (const name of ['Nordamerika +4', 'Europa +4', 'Asien +6', 'Südamerika +3', 'Afrika +3', 'Ozeanien +2']) {
+    assert.ok(labels.some((t) => t.startsWith(name)), `Kontinentlabel ${name} in der Gesamtansicht`);
   }
   await shot('map-01-gesamtansicht-handy');
   await page.getByRole('button', { name: 'Legende' }).click();
+  const legend = await page.locator('.legend').innerText();
+  for (const name of ['Nordmeer', 'Pelagia', 'Abyssos', 'Korallensee', 'Südmeer', 'Selene-Hochland', 'Mare Tenebris', 'Polarkappe']) {
+    assert.ok(legend.includes(name), `Legende nennt ${name}`);
+  }
   await shot('map-02-legende');
   await page.getByRole('button', { name: 'Legende' }).click();
 
@@ -108,14 +114,14 @@ const USER = 'Karla' + Math.floor(Math.random() * 9000 + 1000);
   const empty = (id) => Object.assign(s.territories[id], { owner: null, mods: 0, commanders: [], station: false, devastated: false });
   for (const id of Object.keys(s.territories)) empty(id);
   const put = (id, owner, mods, commanders = [], station = false) => Object.assign(s.territories[id], { owner, mods, commanders, station });
-  put('KAS-10', me, 8, ['LAND']);          // Landpassage nach SAH-1 (Donnerkamm–Dünenmeer)
-  put('KAS-8', me, 6, [], true);           // Station, Küste an Riffbank
-  put('KAS-7', me, 1);
-  put('SAH-1', bot, 1);
-  put('KOR-1', bot, 1); put('KOR-2', bot, 1);
+  put('VEL-1', me, 8, ['LAND']);           // Britannia: Meerenge nach Gallien, Küste am Jan-Mayen-Rücken
+  put('KAS-8', me, 6, [], true);           // Indien: Station, Küste am Südstrom
+  put('KAS-7', me, 1);                     // Vorderasien
+  put('VEL-4', bot, 1);                    // Gallien
+  put('SUD-2', bot, 1); put('SUD-1', bot, 1);
   put('NOR-1', bot2, 1); put('NOR-2', bot2, 1);
-  put('BOR-3', me, 3); put('VEL-5', bot2, 1);
-  put('INS-1', bot, 2);
+  put('BOR-1', me, 3); put('KAS-4', bot2, 1); // Beringstraße
+  put('KOR-1', bot, 2);
   s.phase = 'turn'; s.year = 1; s.turnOrder = [me, bot, bot2]; s.turnIndex = 0; s.invasion = null; s.setup = null;
   s.turn = { player: me, step: 'main', incomeMods: 0, boughtCards: true, invaded: false, contestedConquests: 0, bonusAwarded: false, bonusCardPending: false, fortifiesLeft: 1, conqueredLand: 0 };
   s.players.forEach((p) => { p.energy = 20; p.hand = []; });
@@ -124,19 +130,19 @@ const USER = 'Karla' + Math.floor(Math.random() * 9000 + 1000);
   // ---------------------------------------------------------------- 2. kleine Wasserfelder einzeln antippen
   await centerOn('NOR-1'); await zoomTo(2); await centerOn('NOR-1');
   await tap('NOR-1');
-  await page.locator('.selinfo').getByText('Eisrinne').waitFor();
+  await page.locator('.selinfo').getByText('Irmingersee').waitFor();
   await tap('NOR-2');
-  await page.locator('.selinfo').getByText('Walgraben').waitFor();
+  await page.locator('.selinfo').getByText('Jan-Mayen-Rücken').waitFor();
   await shot('map-03-wasserfelder-antippen');
 
   // ---------------------------------------------------------------- 3. Landpassage ohne Marine-Kdt
   await page.getByRole('button', { name: 'Gesamtansicht' }).click();
-  await centerOn('KAS-10'); await zoomTo(2); await centerOn('KAS-10');
-  await tap('KAS-10');
-  assert.ok(await isTarget('SAH-1'), 'Landpassage Donnerkamm → Dünenmeer ohne Marine');
-  assert.ok(!(await isTarget('KOR-1')), 'Wasserziel ohne Marine-Kdt nicht wählbar');
+  await centerOn('VEL-1'); await zoomTo(3); await centerOn('VEL-1');
+  await tap('VEL-1');
   await shot('map-04-landpassage-ohne-marine');
-  await tap('SAH-1');
+  assert.ok(await isTarget('VEL-4'), 'Meerenge Britannia → Gallien ohne Marine');
+  assert.ok(!(await isTarget('NOR-2')), 'Wasserziel ohne Marine-Kdt nicht wählbar');
+  await tap('VEL-4');
   await page.getByRole('button', { name: 'Angriff erklären' }).click();
   await page.getByRole('button', { name: 'Würfeln' }).waitFor();
   // W8-Auswahl: Land-Kdt auf W6 umschalten
@@ -163,25 +169,26 @@ const USER = 'Karla' + Math.floor(Math.random() * 9000 + 1000);
   await page.getByRole('button', { name: 'Gesamtansicht' }).click();
   await centerOn('KAS-8'); await zoomTo(2); await centerOn('KAS-8');
   await tap('KAS-8');
-  assert.ok(!(await isTarget('KOR-1')), 'ohne Marine-Kdt kein Angriff auf Riffbank');
+  assert.ok(!(await isTarget('SUD-2')), 'ohne Marine-Kdt kein Angriff auf den Südstrom');
   s = await raw();
   s.territories['KAS-7'].commanders = ['NAVAL'];
   await setState(s);
   await tap('KAS-7'); await tap('KAS-8');
-  assert.ok(await isTarget('KOR-1'), 'mit Marine-Kdt (irgendwo im Spiel) Angriff auf Riffbank möglich');
-  await centerOn('KOR-1');
+  assert.ok(await isTarget('SUD-2'), 'mit Marine-Kdt (irgendwo im Spiel) Angriff auf den Südstrom möglich');
+  await centerOn('SUD-2');
   await shot('map-06-wasserangriff-mit-marine');
-  await tap('KOR-1');
+  await tap('SUD-2');
   await page.getByRole('button', { name: 'Angriff erklären' }).click();
   await page.getByRole('button', { name: 'Würfeln' }).waitFor();
   s = await raw();
-  assert.ok(s.invasion && s.invasion.to === 'KOR-1');
+  assert.ok(s.invasion && s.invasion.to === 'SUD-2');
   s.invasion = null; await setState(s);
 
   // ---------------------------------------------------------------- 5. Mondlandung von der Station
   s = await raw();
   s.territories['KAS-7'].commanders = ['NAVAL', 'SPACE'];
   await setState(s);
+  await centerOn('KAS-8');
   await tap('KAS-7'); await tap('KAS-8');
   await page.getByRole('button', { name: /Mondlandung/ }).click();
   await page.locator('svg.board-moon').waitFor();
@@ -206,7 +213,7 @@ const USER = 'Karla' + Math.floor(Math.random() * 9000 + 1000);
   // Quelle Kraterfeld (Station) ist noch gewählt -> Alpha ist Ziel; Richtung umkehren = vom Mond zurück
   await tap('HOC-1');
   await page.getByRole('button', { name: /Richtung umkehren/ }).click();
-  await page.getByText('Verlegen: Landeplatz Alpha → Kraterfeld').waitFor();
+  await page.getByText('Verlegen: Tranquillitatis → Indien').waitFor();
   await shot('map-08b-mond-zurueck');
   // zusätzlich über das Brett: Auswahl aufheben, Alpha als Quelle, Planet zeigt das Stationsgebiet als Ziel
   await page.getByRole('button', { name: 'Zurück' }).click();
@@ -230,11 +237,13 @@ const USER = 'Karla' + Math.floor(Math.random() * 9000 + 1000);
   await setState(s);
   await page.getByRole('button', { name: 'Gesamtansicht' }).click();
   await zoomTo(2);
-  await centerOn('BOR-3');
-  await pan(170, 0); // über den Westrand hinaus: Ostseite wird links angezeigt
+  await centerOn('BOR-1');
+  // Beringia liegt am Westrand; durch den Umlauf wird Fernost (Ostrand) links daneben angezeigt
+  await pan(-60, 0);
   await page.waitForTimeout(200);
-  await tap('BOR-3');
-  assert.ok(await isTarget('VEL-5'), 'Landroute Kaltmark → Kupferhang über den Rand (ohne Marine)');
+  await shot('map-10a-beringstrasse');
+  await tap('BOR-1');
+  assert.ok(await isTarget('KAS-4'), 'Beringstraße Beringia → Fernost über den Rand (ohne Marine)');
   await shot('map-10-ost-west-landroute');
 
   // Moon overview
@@ -257,6 +266,21 @@ const USER = 'Karla' + Math.floor(Math.random() * 9000 + 1000);
   await tap('KOR-1', tp);
   await tp.waitForTimeout(300);
   await shot('map-13-tablet-routen-riffbank', tp);
+  await tp.getByRole('button', { name: 'Mond' }).click();
+  await tp.waitForTimeout(600);
+  await shot('map-14-tablet-mond', tp);
+
+  // ---------------------------------------------------------------- 9. alte Partie (Kartenrevision 2) behält ihre Karte
+  s = await raw();
+  s.mapId = 'kepler-colonies-2';
+  await setState(s);
+  await page.getByRole('button', { name: 'Planet' }).click().catch(() => {});
+  await page.reload();
+  await page.locator('svg.board').waitFor();
+  await page.waitForTimeout(600);
+  const old = await page.locator('svg.board .rlabel text').allTextContents();
+  assert.ok(old.some((t) => t.startsWith('Borea +4') || t.startsWith('Kaskadia +6')), 'alte Partie zeigt die Kepler-Fantasiekarte');
+  await shot('map-15-alte-partie-rev2');
   console.log('Karten-E2E OK');
   await browser.close();
 })().catch((e) => { console.error('E2E FEHLER', e); process.exit(1); });

@@ -42,7 +42,7 @@ await build({
   target: 'es2020',
   outfile: join(out, 'sw.js'),
   minify: true,
-  define: { __ASSETS__: JSON.stringify([js, css, '/icons/icon-192.png']) },
+  define: { __ASSETS__: JSON.stringify([js, css, '/icons/icon-192.png', '/board/moon.jpg']) },
   logLevel: 'warning',
 });
 

@@ -4,11 +4,12 @@ import {
   CARD, cardType, COMMANDER_TYPES, COMMANDER_NAMES, COSTS, MAX_STATIONS, MAX_CARD_BUY, TDEF, RDEF, units,
   invadeError, pathExists, commanderInPlay, commanderLocation, stationCount, validTargets, planDice,
   conquestProbability, maxAttackDice, computeIncome, owned, COLOR_NAMES, attackBlocker, qualifyingAttackCommanders,
-  REGION_MEMBERS, LANDING_SITES, nbrs,
+  REGION_MEMBERS, LANDING_SITES, nbrs, isLegacyMap,
 } from '../../engine/index.ts';
 import type { Command, CommanderType, GameState, Player, UnitMove, CardDef, Targets } from '../../engine/index.ts';
 import { sendCommand, api, type GameView, type Live, type Me } from '../api.ts';
 import { Board, routesFor } from './Board.tsx';
+import { tn, rn, setNameMap } from '../names.ts';
 import { Btn, Dot, Stepper, UnitPicker, timeLeft } from './widgets.tsx';
 import { Hand, cardStatus } from './Hand.tsx';
 import { Players } from './Players.tsx';
@@ -40,6 +41,7 @@ export function phaseLabel(v: GameView): string {
 
 export function Game({ gameId, live, me, navigate }: { gameId: string; live: Live; me: Me; navigate: (p: string) => void }) {
   const [view, setView] = useState<GameView | null>(null);
+  setNameMap(view?.mapId);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('map');
@@ -282,12 +284,12 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
         {placed > 0 && (
           <div class="placelist">
             {Object.entries(placements).filter(([, n]) => n > 0).map(([id, n]) => (
-              <span class="chip on" key={id} onClick={() => { const p = { ...placements }; p[id]--; setPlacements(p); }}>{TDEF[id].name} +{n} ✕</span>
+              <span class="chip on" key={id} onClick={() => { const p = { ...placements }; p[id]--; setPlacements(p); }}>{tn(id)} +{n} ✕</span>
             ))}
           </div>
         )}
         {sel && left > 0 && view!.territories[sel].owner === myId && (
-          <Btn kind="ghost" small onClick={() => setPlacements({ ...placements, [sel]: (placements[sel] ?? 0) + left })}>Rest ({left}) nach {TDEF[sel].name}</Btn>
+          <Btn kind="ghost" small onClick={() => setPlacements({ ...placements, [sel]: (placements[sel] ?? 0) + left })}>Rest ({left}) nach {tn(sel)}</Btn>
         )}
         {extra}
         <div class="btnrow">
@@ -315,7 +317,7 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
             <div class="placelist">
               {(['land', 'diplomat', 'station'] as const).map((k) => (
                 <span key={k} class={`chip ${quick.stage === k ? 'on' : ''}`} onClick={() => setQuick({ ...quick, stage: k })}>
-                  {k === 'land' ? 'Land-Kdt' : k === 'diplomat' ? 'Diplomat' : 'Station'}: {quick[k] ? TDEF[quick[k]!].name : '–'}
+                  {k === 'land' ? 'Land-Kdt' : k === 'diplomat' ? 'Diplomat' : 'Station'}: {quick[k] ? tn(quick[k]!) : '–'}
                 </span>
               ))}
             </div>
@@ -333,7 +335,7 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
           <div class="box">
             <div class="title">Gebiet beanspruchen</div>
             <div>Tippe auf ein freies Landgebiet (markiert).</div>
-            {sel && targets.has(sel) && <Btn kind="ok" onClick={() => send({ t: 'SetupClaim', territory: sel })}>{TDEF[sel].name} besetzen</Btn>}
+            {sel && targets.has(sel) && <Btn kind="ok" onClick={() => send({ t: 'SetupClaim', territory: sel })}>{tn(sel)} besetzen</Btn>}
           </div>
         );
       case 'setupReinforce':
@@ -404,7 +406,7 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
             return (
               <div key={c} class={`cmdcard ${at ? 'active' : ''}`}>
                 <b>{COMMANDER_NAMES[c]}</b>
-                <span>{at ? TDEF[at].name : 'nicht im Spiel'}</span>
+                <span>{at ? tn(at) : 'nicht im Spiel'}</span>
                 {!at && <Btn small disabled={me.energy < COSTS.commander} onClick={() => { setPending({ kind: 'hire', type: c }); setToast('Tippe auf ein eigenes Gebiet'); }}>Anheuern</Btn>}
               </div>
             );
@@ -434,7 +436,7 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
       if (units(tt) === 0) return <OccupyBox from={src} to={target} view={v} busy={busy} onGo={(move) => { send({ t: 'Invade', from: src, to: target, move }); setTarget(null); }} onCancel={() => setTarget(null)} />;
       return (
         <div class="box">
-          <div class="title">{TDEF[src].name} → {TDEF[target].name}</div>
+          <div class="title">{tn(src)} → {tn(target)}</div>
           <div>Verteidiger: {players[tt.owner!]?.name} mit {units(tt)} Einheit(en){tt.station ? ' + Station (alle W8)' : ''}.</div>
           <div class="hint">Nach der Erklärung können Gegner Reaktionskarten spielen; du kannst Angriffskarten (ANG) einsetzen.</div>
           <div class="btnrow">
@@ -447,7 +449,7 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
     return (
       <div class="box">
         <div class="title">Karten spielen & Invasionen</div>
-        <div>{src ? `${TDEF[src].name} gewählt – tippe ein markiertes Ziel (${targets.size}).` : 'Tippe auf ein eigenes Gebiet mit mindestens 2 Einheiten als Angriffsquelle.'}</div>
+        <div>{src ? `${tn(src)} gewählt – tippe ein markiertes Ziel (${targets.size}).` : 'Tippe auf ein eigenes Gebiet mit mindestens 2 Einheiten als Angriffsquelle.'}</div>
         {src && <MoonLaunch src={src} />}
         {otherBoardTargets && !(src && v.territories[src].station) && <div class="hint warn">Es gibt Ziele auf dem {board === 'planet' ? 'Mond' : 'Planeten'} – <a onClick={() => setBoard(board === 'planet' ? 'moon' : 'planet')}>Brett wechseln</a>.</div>}
         {!v.turn!.invaded && <div class="hint">Vor der ersten Invasion: Karten (VOR) im Tab „Hand“ spielen.</div>}
@@ -473,7 +475,7 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
         {missing ? <div class="hint warn">🚀 Mondlandung nicht möglich: {missing}</div> : (
           <>
             <Btn small kind="warn" onClick={() => setBoard('moon')}>🚀 Mondlandung ({sites.length} Landeplatz/-plätze)</Btn>
-            {board === 'moon' && <span class="hint"> Quelle: {TDEF[src].name} – tippe einen markierten Landeplatz.</span>}
+            {board === 'moon' && <span class="hint"> Quelle: {tn(src)} – tippe einen markierten Landeplatz.</span>}
           </>
         )}
       </div>
@@ -491,7 +493,7 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
     return (
       <div class="box">
         <div class="title">Truppenbewegung ({v.turn!.fortifiesLeft}×)</div>
-        <div>{src ? `${TDEF[src].name} gewählt – tippe ein markiertes Zielgebiet (Pfad über eigene Gebiete); erneut tippen hebt die Auswahl auf.` : 'Tippe ein eigenes Gebiet mit mindestens 2 Einheiten als Quelle.'}</div>
+        <div>{src ? `${tn(src)} gewählt – tippe ein markiertes Zielgebiet (Pfad über eigene Gebiete); erneut tippen hebt die Auswahl auf.` : 'Tippe ein eigenes Gebiet mit mindestens 2 Einheiten als Quelle.'}</div>
         {src && otherBoardTargets && (
           <div class="hint ok">Über eigene Station ⇄ eigenen Landeplatz erreichbar: Ziele auf dem {board === 'planet' ? 'Mond' : 'Planeten'} – <a onClick={() => setBoard(board === 'planet' ? 'moon' : 'planet')}>Brett wechseln</a> (kein Raum-Kommandant nötig).</div>
         )}
@@ -565,7 +567,7 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
       const tg = p.tg;
       return (
         <div class="box">{head}<div>{def.text}</div>
-          <div class="big">{!tg.territory ? 'Tippe auf das Startgebiet.' : !tg.territory2 ? 'Tippe auf das Zielgebiet.' : `${TDEF[tg.territory].name} → ${TDEF[tg.territory2].name}`}</div>
+          <div class="big">{!tg.territory ? 'Tippe auf das Startgebiet.' : !tg.territory2 ? 'Tippe auf das Zielgebiet.' : `${tn(tg.territory)} → ${tn(tg.territory2)}`}</div>
           {tg.territory && tg.territory2 && (
             <div class="row">Einheiten: <Stepper value={tg.count ?? def.moveMax!} min={1} max={Math.min(def.moveMax!, units(view!.territories[tg.territory]) - 1)} onChange={(n) => setPending({ ...p, tg: { ...tg, count: n } })} /></div>
           )}
@@ -575,7 +577,7 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
     }
     return (
       <div class="box">{head}<div>{def.text}</div>
-        <div class="big">{p.tg.territory ? `Ziel: ${TDEF[p.tg.territory].name}` : `Tippe auf ein markiertes Ziel (${targets.size} möglich).`}</div>
+        <div class="big">{p.tg.territory ? `Ziel: ${tn(p.tg.territory)}` : `Tippe auf ein markiertes Ziel (${targets.size} möglich).`}</div>
         {targets.size === 0 && <div class="hint warn">Aktuell gibt es kein gültiges Ziel.</div>}
         <div class="btnrow">{cancel}<Btn kind="ok" disabled={!p.tg.territory} onClick={() => play(p.tg)}>Ausführen</Btn></div>
       </div>
@@ -617,7 +619,7 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
       <div class={`content tab-${tab}`}>
         <section class="mapwrap">
           <div class="boardtoggle">
-            <button class={board === 'planet' ? 'on' : ''} onClick={() => setBoard('planet')}>Planet</button>
+            <button class={board === 'planet' ? 'on' : ''} onClick={() => setBoard('planet')}>{isLegacyMap(view.mapId) ? 'Planet' : 'Erde'}</button>
             <button class={board === 'moon' ? 'on' : ''} onClick={() => setBoard('moon')}>Mond{otherBoardTargets && board === 'planet' ? ' •' : ''}</button>
           </div>
           <Board view={view} board={board} selected={target ?? sel} focus={target ?? sel} targets={targets} overlay={overlay} flash={flash} onTap={onTap} />
@@ -681,19 +683,19 @@ function TerritoryInfo({ id, view, players, compact }: { id: string; view: GameV
   for (const x of members) { const o = view.territories[x].owner; if (o) holders.set(o, (holders.get(o) ?? 0) + 1); }
   const routes = routesOf(view, id);
   const byKind = new Map<string, string[]>();
-  for (const r of routes) byKind.set(r.kind, [...(byKind.get(r.kind) ?? []), TDEF[r.id].name]);
+  for (const r of routes) byKind.set(r.kind, [...(byKind.get(r.kind) ?? []), tn(r.id)]);
   return (
     <div class={`tinfo ${compact ? 'compact' : ''}`}>
-      <b>{def.name}</b> <span class="hint">{def.type === 'land' ? 'Land' : def.type === 'water' ? 'Unterwasserfeld' : 'Mond'}{def.landingSite ? ' · Landeplatz' : ''}</span>
+      <b>{tn(id)}</b> <span class="hint">{def.type === 'land' ? 'Land' : def.type === 'water' ? 'Unterwasserfeld' : 'Mond'}{def.landingSite ? ' · Landeplatz' : ''}</span>
       <div>
         {t.devastated ? 'Verwüstet' : owner ? <><Dot color={owner.color} /> {owner.name}: {t.mods} MODs{t.commanders.length ? ` · ${t.commanders.map((c) => COMMANDER_NAMES[c]).join(', ')}` : ''}{t.station ? ' · Station' : ''}</> : 'Unbesetzt'}
       </div>
       <div class="regline">
-        <span class="regname">{reg.name} +{reg.bonus}</span>
-        <span class="regbar">{members.map((x) => <i key={x} title={TDEF[x].name} style={{ background: view.territories[x].owner ? players[view.territories[x].owner!]?.color : '#3b4658' }} />)}</span>
+        <span class="regname">{rn(reg.id)} +{reg.bonus}</span>
+        <span class="regbar">{members.map((x) => <i key={x} title={tn(x)} style={{ background: view.territories[x].owner ? players[view.territories[x].owner!]?.color : '#3b4658' }} />)}</span>
         {view.me && <span class="hint">{mine.length === members.length ? 'vollständig deins ✓' : `du ${mine.length}/${members.length}`}</span>}
       </div>
-      {!compact && view.me && missing.length > 0 && missing.length < members.length && <div class="hint">Es fehlen: {missing.map((x) => TDEF[x].name).join(', ')}</div>}
+      {!compact && view.me && missing.length > 0 && missing.length < members.length && <div class="hint">Es fehlen: {missing.map((x) => tn(x)).join(', ')}</div>}
       {!compact && <div class="hint">Anteile: {[...holders].map(([o, n]) => `${players[o]?.name} ${n}`).join(' · ') || '–'}</div>}
       {!compact && (
         <div class="routes">
@@ -758,8 +760,8 @@ function OccupyBox({ from, to, view, busy, onGo, onCancel, title }: { from: stri
   const [move, setMove] = useState<UnitMove>({ mods: Math.min(t.mods, Math.max(1, Math.floor(units(t) / 2))), commanders: [] });
   return (
     <div class="box">
-      <div class="title">{title ?? `${TDEF[from].name} → ${TDEF[to].name} (unbesetzt)`}</div>
-      <div class="hint">{title ? `${TDEF[from].name} → ${TDEF[to].name}: keine Verluste, kein Eroberungsbonus; mindestens 1 Einheit bleibt.` : 'Besetzen ohne Würfeln – zählt als Invasion.'}</div>
+      <div class="title">{title ?? `${tn(from)} → ${tn(to)} (unbesetzt)`}</div>
+      <div class="hint">{title ? `${tn(from)} → ${tn(to)}: keine Verluste, kein Eroberungsbonus; mindestens 1 Einheit bleibt.` : 'Besetzen ohne Würfeln – zählt als Invasion.'}</div>
       <UnitPicker t={t} value={move} onChange={setMove} min={1} />
       <div class="btnrow"><Btn kind="ghost" onClick={onCancel}>Zurück</Btn><Btn kind="ok" disabled={busy || move.mods + move.commanders.length < 1} onClick={() => onGo(move)}>{title ? 'Verlegen' : 'Besetzen'}</Btn></div>
     </div>
@@ -771,7 +773,7 @@ function FortifyBox({ from, to, view, busy, onGo, onCancel, onReverse }: { from:
   const [move, setMove] = useState<UnitMove>({ mods: Math.max(0, t.mods - (t.commanders.length ? 0 : 1)), commanders: [] });
   return (
     <div class="box">
-      <div class="title">Verlegen: {TDEF[from].name} → {TDEF[to].name}</div>
+      <div class="title">Verlegen: {tn(from)} → {tn(to)}</div>
       {TDEF[from].board !== TDEF[to].board && <div class="hint ok">Über eigene Station ⇄ eigenen Landeplatz – kein Raum-Kommandant nötig.</div>}
       {onReverse && <Btn small kind="ghost" onClick={onReverse}>⇄ Richtung umkehren</Btn>}
       <UnitPicker t={t} value={move} onChange={setMove} min={1} />
@@ -818,7 +820,7 @@ function AttackBox({ view, s, me, players, busy, battle, onAttack, onRetreat, on
   const stop = battle?.data?.stopReason as string | undefined;
   return (
     <div class="box">
-      <div class="title">{TDEF[i.from].name} ({units(from)}) → {TDEF[i.to].name} ({units(to)}, {defender?.name ?? '–'})</div>
+      <div class="title">{tn(i.from)} ({units(from)}) → {tn(i.to)} ({units(to)}, {defender?.name ?? '–'})</div>
       {i.mods.played.length > 0 && <div class="hint warn">Gespielte Karten: {i.mods.played.map((id) => CARD[id].name).join(', ')}</div>}
       <DiceRow battle={battle} />
       {(blocker || stop) && <div class="box warn small">Angriff gestoppt: {blocker ?? stop}. Du kannst die Invasion abbrechen; Verteidigung und Truppenbewegung bleiben möglich.</div>}
@@ -868,11 +870,11 @@ function AdvanceBox({ from, to, t, min, must, busy, battle, onGo }: { from: stri
   });
   return (
     <div class="box ok">
-      <div class="title">{TDEF[to].name} erobert! Einheiten nachziehen</div>
+      <div class="title">{tn(to)} erobert! Einheiten nachziehen</div>
       <DiceRow battle={battle} />
       <div class="hint">Mindestens {min} (Würfel des letzten Wurfs); Kommandanten mit W8 müssen mit.</div>
       <UnitPicker t={t} value={move} onChange={setMove} min={min} mustCmd={must} />
-      <Btn kind="ok" disabled={busy || move.mods + move.commanders.length < min} onClick={() => onGo(move)}>Nachziehen von {TDEF[from].name}</Btn>
+      <Btn kind="ok" disabled={busy || move.mods + move.commanders.length < min} onClick={() => onGo(move)}>Nachziehen von {tn(from)}</Btn>
     </div>
   );
 }

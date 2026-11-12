@@ -61,7 +61,7 @@ Alle Mitspieler sollten immer dieselbe Adresse (`https://kepler.deine-domain.de`
   - Mitspieler sehen die Partie live und treten bei; der Host startet.
   - Laufende Partien anderer Spieler kann man als Zuschauer verfolgen.
 - **Partie:**
-  - **Karte:** Tippen wählt Gebiete, zwei Finger zoomen, Wischen verschiebt die Karte. Sie ist an Ost- und Westrand verbunden; per Umschalter geht es auf den Mond.
+  - **Karte:** Erde (Küsten: Natural Earth) und Mond (NASA-LROC-Mosaik) mit eigener Gebietsaufteilung. Tippen wählt Gebiete, zwei Finger zoomen, Wischen verschiebt die Karte. Sie ist an Ost- und Westrand verbunden (Beringstraße); per Umschalter geht es auf den Mond. Ältere Partien behalten ihre ursprüngliche Karte.
   - **Aktionsleiste:** führt durch alle Phasen. Die Zugfolge ist Gebot → Platzwahl → Einsetzen → Anheuern/Bauen → Karten kaufen → Karten spielen und Invasionen → Truppenbewegung → Zugende.
   - **Hand:** Karten spielen und Reaktionsregeln ein- oder ausschalten.
   - **Spieler:** öffentliche Informationen aller Spieler.
@@ -110,7 +110,13 @@ node tests/e2e/multiplayer.cjs http://localhost:8210          # E2E zwei Spieler
 src/engine/     Regel-Engine (rein, deterministisch): Regeln, Kampf, Karten, Bot, Projektion
 src/server/     HTTP-API, WebSocket, SQLite, Profile, Lobby, Fristen, Web Push
 src/client/     PWA (Preact): Lobby, Profil, Spielbrett (SVG), Aktionsleiste, Service Worker
-content/board/  Karte (map.json) und Geometrie (geometry.json), erzeugt von tools/board-generator
+content/board/  Karte (map.json) und Geometrie (geometry.json), erzeugt von tools/board-generator/earth_board.py;
+                legacy/ = Kepler-Fantasiekarte für alte Partien
 docs/           Konzept, Kartenkatalog, Status, Grafiken
 deploy/unraid/  Unraid-Template
 ```
+
+## Quellen
+
+- Küsten- und Ländergrenzen: [Natural Earth](https://www.naturalearthdata.com/) 1:50 Mio., gemeinfrei (über `world-atlas`).
+- Mond: NASA/GSFC/Arizona State University, LROC WAC Nearside-Mosaik, gemeinfrei.

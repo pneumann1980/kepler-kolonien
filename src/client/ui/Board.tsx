@@ -1,30 +1,41 @@
-// Interaktives Spielbrett (SVG, Darstellung v2): Gesamtansicht, Pinch-Zoom, Verschieben, Tippen, Ost-West-Umlauf,
-// Regionsfarben + Beschriftungen, Landpassagen/Wasserrouten, Trefferflächen für Wasserfelder, Landeplätze.
+// Interaktives Spielbrett (SVG): Gesamtansicht, Pinch-Zoom, Verschieben, Tippen, Ost-West-Umlauf,
+// Regionsfarben + Beschriftungen, Routen, Trefferflächen, Landeplätze.
+// Darstellung je Kartenrevision: Rev. 3 = Erde & Mond (geometry/v3), Rev. 1/2 = Kepler-Fantasiekarte (geometry/v2).
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import geometry from '../../../content/board/geometry.json' with { type: 'json' };
-import { TDEF, RDEF, REGION_MEMBERS, COMMANDER_SHORT, MAP_ID_V2, units } from '../../engine/index.ts';
+import legacyGeometry from '../../../content/board/legacy/kepler-colonies-geometry.json' with { type: 'json' };
+import { TDEF, RDEF, REGION_MEMBERS, COMMANDER_SHORT, MAP_ID_V2, isLegacyMap, units } from '../../engine/index.ts';
 import type { GameView } from '../api.ts';
+import { tn, rn } from '../names.ts';
 
 type Pt = [number, number];
-export type Route = { a: string; b: string; kind: 'strait' | 'coast' | 'water' | 'colony'; pts: [Pt, Pt]; pts2?: [Pt, Pt]; wrap?: boolean; rev?: number; label?: string };
-type Geo = {
-  boards: { planet: { width: number; height: number }; moon: { width: number; height: number; radius: number; cx: number; cy: number } };
+export type Route = { a: string; b: string; kind: 'strait' | 'coast' | 'water' | 'colony'; pts: Pt[]; pts2?: Pt[]; wrap?: boolean; rev?: number; label?: string };
+export type Geo = {
+  schema: string;
+  boards: { planet: { width: number; height: number }; moon: { width: number; height: number; radius: number; cx: number; cy: number; texture?: string } };
   territories: Record<string, { d: string; label: Pt; hit?: string; marker?: Pt }>;
   regions: Record<string, { outline: string; color: string; label: Pt; labelMode: string }>;
   routes: Route[];
   borders: [string, string][];
   landShadow: string;
   landingShort: Record<string, string>;
+  graticule?: { lon: number[]; lat: number[] };
 };
-export const GEO = geometry as unknown as Geo;
-const PLANET_IDS = Object.keys(GEO.territories).filter((id) => TDEF[id].board === 'planet');
-const MOON_IDS = Object.keys(GEO.territories).filter((id) => TDEF[id].board === 'moon');
-const PLANET_REGIONS = Object.keys(GEO.regions).filter((r) => RDEF[r].kind !== 'lunarColony');
-const MOON_REGIONS = Object.keys(GEO.regions).filter((r) => RDEF[r].kind === 'lunarColony');
+const GEO_EARTH = geometry as unknown as Geo;
+const GEO_LEGACY = legacyGeometry as unknown as Geo;
+/** Darstellung zur Kartenrevision einer Partie */
+export function geoFor(mapId: string | undefined): Geo {
+  return mapId && isLegacyMap(mapId) ? GEO_LEGACY : GEO_EARTH;
+}
+const IDS = (board: 'planet' | 'moon') => Object.keys(TDEF).filter((id) => TDEF[id].board === board);
+const PLANET_IDS = IDS('planet');
+const MOON_IDS = IDS('moon');
+const PLANET_REGIONS = Object.keys(RDEF).filter((r) => RDEF[r].kind !== 'lunarColony');
+const MOON_REGIONS = Object.keys(RDEF).filter((r) => RDEF[r].kind === 'lunarColony');
 
-/** Routen, die in einer Partie gelten (Landroute über den Rand nur in Kartenrevision 2) */
+/** Routen, die in einer Partie gelten (Rev.-2-Landroute nur in Rev.-2-Partien) */
 export function routesFor(mapId: string): Route[] {
-  return GEO.routes.filter((r) => !r.rev || (r.rev === 2 && mapId === MAP_ID_V2));
+  return geoFor(mapId).routes.filter((r) => !r.rev || (r.rev === 2 && mapId === MAP_ID_V2));
 }
 
 export interface BoardProps {
@@ -46,9 +57,11 @@ function shade(hex: string, f: number): string {
   const v = [0, 2, 4].map((i) => Math.max(0, Math.min(255, Math.round(parseInt(h.slice(i, i + 2), 16) * f))));
   return `#${v.map((x) => x.toString(16).padStart(2, '0')).join('')}`;
 }
-const TINT: Record<string, number> = Object.fromEntries(Object.keys(GEO.territories).map((id, k) => [id, 1 + 0.06 * ((k * 7) % 5 - 2)]));
+const TINT: Record<string, number> = Object.fromEntries(Object.keys(TDEF).map((id, k) => [id, 1 + 0.06 * ((k * 7) % 5 - 2)]));
 
 export function Board({ view, board, selected, focus, targets, overlay, flash, onTap }: BoardProps) {
+  const GEO = geoFor(view.mapId);
+  const earth = GEO.schema === 'geometry/v3';
   const dims = board === 'planet' ? GEO.boards.planet : GEO.boards.moon;
   const W = dims.width, H = dims.height;
   const wrap = board === 'planet';
@@ -151,10 +164,30 @@ export function Board({ view, board, selected, focus, targets, overlay, flash, o
   const focusRoutes = focus ? routes.filter((rt) => rt.a === focus || rt.b === focus) : [];
 
   const seg = (rt: Route, k: string, style: Record<string, string | number>, dx: number) => [rt.pts, ...(rt.pts2 ? [rt.pts2] : [])].map((p, i) => (
-    <line key={`${k}-${i}-${dx}`} x1={p[0][0] + dx} y1={p[0][1]} x2={p[1][0] + dx} y2={p[1][1]} {...style} pointer-events="none" />
+    <polyline key={`${k}-${i}-${dx}`} points={p.map(([x, y]) => `${x + dx},${y}`).join(' ')} fill="none" stroke-linejoin="round" {...style} pointer-events="none" />
   ));
-  const routeStyle = (kind: Route['kind'], hi: boolean): Record<string, string | number> => {
+  // Pfeilspitzen am Kartenrand für Ost-West-Übergänge
+  const wrapArrows = (rt: Route, dx: number) => {
+    if (!rt.wrap || !rt.pts2) return null;
+    const a = rt.pts[rt.pts.length - 1], b = rt.pts2[0];
+    const s_ = Math.max(7, px(4));
+    return [a, b].map(([x, y], i) => {
+      const dir = x <= 0 ? -1 : 1;
+      return <path key={`wa-${rt.a}-${rt.b}-${i}-${dx}`} d={`M${x + dx - dir * s_ * 0.6},${y - s_}L${x + dx + dir * s_ * 0.9},${y}L${x + dx - dir * s_ * 0.6},${y + s_}Z`} fill="#fff3c4" pointer-events="none" />;
+    });
+  };
+  const colonyColor = (rt: Route) => GEO.regions[TDEF[TDEF[rt.a].type === 'water' ? rt.a : rt.b].region].color;
+  const routeStyle = (kind: Route['kind'], hi: boolean, rt?: Route): Record<string, string | number> => {
     const w = (n: number) => Math.max(n, px(n / 2.6));
+    if (earth) {
+      const col = rt ? colonyColor(rt) : '#9fe3ff';
+      switch (kind) {
+        case 'strait': return { stroke: hi ? '#fff3b0' : '#fff3c4', 'stroke-width': w(hi ? 6 : 3.5), 'stroke-dasharray': `${w(2.5)} ${w(7)}`, 'stroke-linecap': 'round' };
+        case 'colony': return { stroke: col, 'stroke-width': w(hi ? 8 : 6), 'stroke-linecap': 'round', 'stroke-opacity': 0.95 };
+        case 'water': return { stroke: hi ? '#ffffff' : '#bfe9ff', 'stroke-width': w(hi ? 4.5 : 3), 'stroke-dasharray': `${w(12)} ${w(7)}`, 'stroke-linecap': 'round', 'stroke-opacity': hi ? 1 : 0.75 };
+        case 'coast': return { stroke: hi ? '#ffffff' : col, 'stroke-width': w(hi ? 4.5 : 2.5), 'stroke-linecap': 'round', 'stroke-opacity': hi ? 1 : 0.8 };
+      }
+    }
     switch (kind) {
       case 'strait': return { stroke: hi ? '#fff3b0' : '#f3e6b8', 'stroke-width': w(hi ? 7 : 5), 'stroke-dasharray': `${w(2)} ${w(8)}`, 'stroke-linecap': 'round' };
       case 'colony': return { stroke: '#e6fbff', 'stroke-width': w(hi ? 9 : 7), 'stroke-linecap': 'round', 'stroke-opacity': 0.9 };
@@ -188,13 +221,20 @@ export function Board({ view, board, selected, focus, targets, overlay, flash, o
     const isTarget = targets?.has(id);
     return (
       <g key={`${id}@${dx}`} data-tid={id} data-copy={dx} transform={tr} class={`terr t-${def.type}`}>
-        {def.type === 'water' ? (
+        {def.type === 'water' ? (earth ? (
+          <>
+            <path d={g.d} fill="none" stroke={GEO.regions[def.region].color} stroke-width={12} stroke-opacity={0.3} />
+            <path d={g.d} fill="#062a38" fill-opacity={0.9} stroke={GEO.regions[def.region].color} stroke-width={5} />
+          </>
+        ) : (
           <>
             <path d={g.d} fill="#123a63" stroke={GEO.regions[def.region].color} stroke-width={7} />
             <path d={g.d} fill="none" stroke="#e8fbff" stroke-width={1.5} />
           </>
-        ) : <path d={g.d} fill={base} stroke="#0b1322" stroke-width={1.6} stroke-linejoin="round" />}
-        {owner && <path d={g.d} fill={def.type === 'water' ? owner.color : 'none'} fill-opacity={def.type === 'water' ? 0.35 : 1} stroke={owner.color} stroke-width={def.type === 'water' ? 16 : 12} clip-path={`url(#clip-${id})`} stroke-opacity={0.95} />}
+        )) : def.type === 'moon' && earth ? (
+          <path d={g.d} fill={GEO.regions[def.region].color} fill-opacity={0.16} stroke={GEO.regions[def.region].color} stroke-width={2.2} stroke-opacity={0.9} />
+        ) : <path d={g.d} fill={earth ? GEO.regions[def.region].color : base} stroke={earth ? '#13232b' : '#0b1322'} stroke-width={1.6} stroke-linejoin="round" />}
+        {owner && <path d={g.d} fill={def.type === 'water' ? owner.color : 'none'} fill-opacity={def.type === 'water' ? 0.35 : 1} stroke={owner.color} stroke-width={def.type === 'water' ? (earth ? 10 : 16) : 12} clip-path={`url(#clip-${id})`} stroke-opacity={0.95} />}
         {t.devastated && <path d={g.d} fill="url(#hatch)" />}
         {isTarget && <path d={g.d} fill="#fde047" fill-opacity={0.22} stroke="#fde047" stroke-width={Math.max(4, px(2.2))} stroke-dasharray={`${px(6)} ${px(4)}`} class="pulse" />}
         {selected === id && <path d={g.d} fill="#ffffff" fill-opacity={0.16} stroke="#ffffff" stroke-width={Math.max(5, px(2.6))} />}
@@ -214,7 +254,7 @@ export function Board({ view, board, selected, focus, targets, overlay, flash, o
     return (
       <g key={`b-${id}@${dx}`} data-tid={id} data-copy={dx} class="badge">
         <circle cx={x} cy={ly} r={r * 0.9} class="anchor" fill="#000" fill-opacity={0.001} />
-        {showNames && <text x={x} y={ly - r - px(4)} class="tname" font-size={px(10.5)} stroke-width={px(2.5)}>{TDEF[id].name}</text>}
+        {showNames && <text x={x} y={ly - r - px(4)} class="tname" font-size={px(10.5)} stroke-width={px(2.5)}>{tn(id)}</text>}
         {t.devastated && <text x={x} y={ly + r * 0.4} class="devast" font-size={r * 1.2}>✕</text>}
         {owner && (n > 0 || t.station) && (
           <>
@@ -241,17 +281,46 @@ export function Board({ view, board, selected, focus, targets, overlay, flash, o
     );
   };
 
-  const renderRegionLabel = (rid: string, dx: number) => {
-    const reg = GEO.regions[rid];
+  const pill = (rid: string) => {
     const def = RDEF[rid];
     const big = def.kind === 'continent' || def.kind === 'lunarColony';
     const fpx = narrow ? (big ? 11.5 : 9.5) : big ? 14 : 11.5;
     const fs = px(fpx);
-    const text = `${def.name} +${def.bonus}`;
+    const text = `${rn(rid)} +${def.bonus}`;
     const w = fs * (text.length * 0.58) + fs * 1.1;
-    const [x, y] = reg.label;
     const mine = view.me ? REGION_MEMBERS[rid].filter((id) => view.territories[id].owner === view.me).length : 0;
     const total = REGION_MEMBERS[rid].filter((id) => !view.territories[id].devastated).length;
+    const [x, y] = GEO.regions[rid].label;
+    return { big, fs, text, w, mine, total, x, y, h: fs * 1.7 + (mine > 0 ? fs * 1.1 : 0) };
+  };
+  // Beschriftungen ohne Überlappung: Kontinente/Mondkolonien zuerst, verdeckte Wasserkolonie-Labels entfallen
+  // (beim Hineinzoomen werden sie relativ kleiner und erscheinen wieder; die Legende listet alle Regionen)
+  const shownLabels = (() => {
+    const order = [...(board === 'planet' ? PLANET_REGIONS : MOON_REGIONS)].sort((a, b) => Number(pill(b).big) - Number(pill(a).big));
+    const taken: [number, number, number, number][] = [];
+    const ok = new Map<string, number>();   // Schlüssel -> vertikale Verschiebung
+    for (const dx of offsets) for (const rid of order) {
+      const p = pill(rid);
+      const shifts = p.big ? [0, 1, -1, 2, -2] : [0, 1, -1];
+      for (const k of shifts) {
+        const dy = k * p.h * 0.9;
+        const bx: [number, number, number, number] = [p.x + dx - p.w / 2, p.y + dy - p.fs * 0.85, p.x + dx + p.w / 2, p.y + dy - p.fs * 0.85 + p.h];
+        if (bx[2] < vx || bx[0] > vx + vw) break;
+        if (taken.some((t) => bx[0] < t[2] && bx[2] > t[0] && bx[1] < t[3] && bx[3] > t[1])) continue;
+        taken.push(bx);
+        ok.set(`${rid}@${dx}`, dy);
+        break;
+      }
+    }
+    return ok;
+  })();
+
+  const renderRegionLabel = (rid: string, dx: number) => {
+    const dy = shownLabels.get(`${rid}@${dx}`);
+    if (dy === undefined) return null;
+    const reg = GEO.regions[rid];
+    const { fs, text, w, mine, total, x, y: y0 } = pill(rid);
+    const y = y0 + dy;
     return (
       <g key={`rl-${rid}@${dx}`} class="rlabel" pointer-events="none" transform={dx ? `translate(${dx},0)` : undefined}>
         <rect x={x - w / 2} y={y - fs * 0.85} width={w} height={fs * 1.7} rx={fs * 0.85} fill="#0b1220" fill-opacity={0.82} stroke={reg.color} stroke-width={Math.max(1.5, px(1.4))} />
@@ -287,7 +356,7 @@ export function Board({ view, board, selected, focus, targets, overlay, flash, o
     return (
       <div class="lg-row" key={r.id}>
         <i style={{ background: GEO.regions[r.id].color }} />
-        <span>{r.name}</span>
+        <span>{rn(r.id)}</span>
         <b>+{r.bonus}</b>
         <span class="hint">{members.length} {view.me ? `· du ${mine}` : ''}</span>
       </div>
@@ -312,37 +381,54 @@ export function Board({ view, board, selected, focus, targets, overlay, flash, o
             <line x1="0" y1="0" x2="0" y2="12" stroke="#6b7280" stroke-width="5" />
           </pattern>
           <radialGradient id="seaGrad" cx="50%" cy="45%" r="75%"><stop offset="0" stop-color="#1d4f80" /><stop offset="1" stop-color="#0f2c4d" /></radialGradient>
+          <linearGradient id="seaEarth" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0c3f52" /><stop offset="0.5" stop-color="#0a3445" /><stop offset="1" stop-color="#072634" /></linearGradient>
+          <clipPath id="moonDisc"><circle cx={GEO.boards.moon.cx} cy={GEO.boards.moon.cy} r={GEO.boards.moon.radius} /></clipPath>
           <radialGradient id="space" cx="50%" cy="45%" r="70%"><stop offset="0" stop-color="#1b2540" /><stop offset="1" stop-color="#070b14" /></radialGradient>
           {ids.map((id) => <clipPath key={`c-${id}`} id={`clip-${id}`}><path d={GEO.territories[id].d} /></clipPath>)}
         </defs>
         {board === 'planet' ? (
           <>
-            <rect x={vx - 10} y={vy - 10} width={vw + 20} height={vh + 20} fill="#0f2c4d" />
+            <rect x={vx - 10} y={vy - 10} width={vw + 20} height={vh + 20} fill={earth ? '#072634' : '#0f2c4d'} />
             {offsets.map((dx) => (
               <g key={`sea-${dx}`} transform={dx ? `translate(${dx},0)` : undefined} pointer-events="none">
-                <rect x={0} y={0} width={W} height={H} fill="url(#seaGrad)" />
-                {[200, 400, 600, 800].map((y) => <line key={y} x1={0} y1={y} x2={W} y2={y} stroke="#fff" stroke-opacity={0.04} />)}
-                <path d={GEO.landShadow} fill="#2d6a95" fill-opacity={0.5} />
+                <rect x={0} y={0} width={W} height={H} fill={earth ? 'url(#seaEarth)' : 'url(#seaGrad)'} />
+                {earth && GEO.graticule ? (
+                  <>
+                    {GEO.graticule.lon.map((x) => <line key={`gx${x}`} x1={x} y1={0} x2={x} y2={H} stroke="#2c6a80" stroke-opacity={0.35} stroke-width={1} />)}
+                    {GEO.graticule.lat.map((y) => <line key={`gy${y}`} x1={0} y1={y} x2={W} y2={y} stroke="#2c6a80" stroke-opacity={0.35} stroke-width={1} />)}
+                    <path d={GEO.landShadow} fill="#04131a" fill-opacity={0.55} transform="translate(3,4)" />
+                  </>
+                ) : (
+                  <>
+                    {[200, 400, 600, 800].map((y) => <line key={y} x1={0} y1={y} x2={W} y2={y} stroke="#fff" stroke-opacity={0.04} />)}
+                    <path d={GEO.landShadow} fill="#2d6a95" fill-opacity={0.5} />
+                  </>
+                )}
               </g>
             ))}
-            {offsets.map((dx) => routes.filter((rt) => rt.kind === 'coast' || rt.kind === 'water').map((rt) => seg(rt, `r-${rt.a}-${rt.b}`, routeStyle(rt.kind, false), dx)))}
-            {offsets.map((dx) => regions.filter((rid) => RDEF[rid].kind === 'waterColony').map((rid) => (
+            {!earth && offsets.map((dx) => routes.filter((rt) => rt.kind === 'coast' || rt.kind === 'water').map((rt) => seg(rt, `r-${rt.a}-${rt.b}`, routeStyle(rt.kind, false, rt), dx)))}
+            {!earth && offsets.map((dx) => regions.filter((rid) => RDEF[rid].kind === 'waterColony').map((rid) => (
               <path key={`halo-${rid}@${dx}`} d={GEO.regions[rid].outline} transform={dx ? `translate(${dx},0)` : undefined} fill={GEO.regions[rid].color} fill-opacity={0.12} stroke={GEO.regions[rid].color} stroke-opacity={0.55} stroke-width={2} stroke-dasharray="4 5" pointer-events="none" />
             )))}
-            {offsets.map((dx) => routes.filter((rt) => rt.kind === 'coast').map((rt) => coastStub(rt, dx)))}
+            {!earth && offsets.map((dx) => routes.filter((rt) => rt.kind === 'coast').map((rt) => coastStub(rt, dx)))}
           </>
         ) : (
           <>
             <rect x={vx - 10} y={vy - 10} width={vw + 20} height={vh + 20} fill="url(#space)" />
-            <circle cx={GEO.boards.moon.cx} cy={GEO.boards.moon.cy} r={GEO.boards.moon.radius + 14} fill="#1a2236" />
+            <circle cx={GEO.boards.moon.cx} cy={GEO.boards.moon.cy} r={GEO.boards.moon.radius + (earth ? 10 : 14)} fill={earth ? '#9fb4d8' : '#1a2236'} fill-opacity={earth ? 0.12 : 1} />
+            {earth && GEO.boards.moon.texture && (
+              <image href={`/${GEO.boards.moon.texture}`} x={0} y={0} width={W} height={H} clip-path="url(#moonDisc)" pointer-events="none" />
+            )}
           </>
         )}
-        {offsets.map((dx) => ids.map((id) => renderTerritory(id, dx)))}
+        {offsets.map((dx) => ids.filter((id) => !earth || TDEF[id].type !== 'water').map((id) => renderTerritory(id, dx)))}
         {offsets.map((dx) => regions.filter((rid) => RDEF[rid].kind !== 'waterColony').map((rid) => (
-          <path key={`ol-${rid}@${dx}`} d={GEO.regions[rid].outline} transform={dx ? `translate(${dx},0)` : undefined} fill="none" stroke="#050a14" stroke-width={board === 'moon' ? 6 : 4.5} stroke-linejoin="round" pointer-events="none" />
+          <path key={`ol-${rid}@${dx}`} d={GEO.regions[rid].outline} transform={dx ? `translate(${dx},0)` : undefined} fill="none" stroke={earth && board === 'moon' ? GEO.regions[rid].color : earth ? '#0b1418' : '#050a14'} stroke-width={board === 'moon' ? (earth ? 5 : 6) : earth ? 2.6 : 4.5} stroke-linejoin="round" pointer-events="none" />
         )))}
-        {board === 'planet' && offsets.map((dx) => routes.filter((rt) => rt.kind === 'strait' || rt.kind === 'colony').map((rt) => seg(rt, `s-${rt.a}-${rt.b}`, routeStyle(rt.kind, false), dx)))}
-        {board === 'planet' && offsets.map((dx) => focusRoutes.map((rt) => seg(rt, `f-${rt.a}-${rt.b}`, routeStyle(rt.kind, true), dx)))}
+        {board === 'planet' && offsets.map((dx) => routes.filter((rt) => earth || rt.kind === 'strait' || rt.kind === 'colony').map((rt) => seg(rt, `s-${rt.a}-${rt.b}`, routeStyle(rt.kind, false, rt), dx)))}
+        {board === 'planet' && earth && offsets.map((dx) => routes.map((rt) => wrapArrows(rt, dx)))}
+        {board === 'planet' && earth && offsets.map((dx) => ids.filter((id) => TDEF[id].type === 'water').map((id) => renderTerritory(id, dx)))}
+        {board === 'planet' && offsets.map((dx) => focusRoutes.map((rt) => seg(rt, `f-${rt.a}-${rt.b}`, routeStyle(rt.kind, true, rt), dx)))}
         {board === 'planet' && offsets.map((dx) => ids.filter((id) => GEO.territories[id].hit).map((id) => (
           <path key={`hit-${id}@${dx}`} d={GEO.territories[id].hit} transform={dx ? `translate(${dx},0)` : undefined} data-tid={id} data-copy={dx} class="hit" fill="#000" fill-opacity={0.001} />
         )))}
@@ -356,10 +442,23 @@ export function Board({ view, board, selected, focus, targets, overlay, flash, o
           <div class="lg-title">Unterwasserkolonien</div>{legendRows('waterColony')}
           <div class="lg-title">Mondkolonien</div>{legendRows('lunarColony')}
           <div class="lg-title">Routen</div>
-          <div class="lg-row"><svg width="34" height="10"><line x1="2" y1="5" x2="32" y2="5" stroke="#f3e6b8" stroke-width="4" stroke-dasharray="2 6" stroke-linecap="round" /></svg><span>Landpassage (ohne Marine)</span></div>
-          <div class="lg-row"><svg width="34" height="10"><line x1="2" y1="5" x2="32" y2="5" stroke="#9fe3ff" stroke-width="3" stroke-dasharray="6 4" /></svg><span>Küste / Seeweg (Marine-Kdt im Spiel)</span></div>
-          <div class="lg-row"><svg width="34" height="10"><line x1="2" y1="5" x2="32" y2="5" stroke="#e6fbff" stroke-width="5" stroke-linecap="round" /></svg><span>innerhalb einer Unterwasserkolonie</span></div>
-          <div class="lg-row"><span class="hint">Linien zum Kartenrand = Ost-West-Übergang. Gebiet antippen zeigt seine Routen.</span></div>
+          {earth ? (
+            <>
+              <div class="lg-row"><svg width="34" height="10"><line x1="2" y1="5" x2="32" y2="5" stroke="#fff3c4" stroke-width="3.5" stroke-dasharray="2.5 6" stroke-linecap="round" /></svg><span>Seeweg / Meerenge zwischen Landgebieten (ohne Marine)</span></div>
+              <div class="lg-row"><svg width="34" height="10"><line x1="2" y1="5" x2="32" y2="5" stroke="#4fb0f0" stroke-width="2.5" /></svg><span>Küstenzugang zur Wasserkolonie (Marine-Kdt im Spiel)</span></div>
+              <div class="lg-row"><svg width="34" height="10"><line x1="2" y1="5" x2="32" y2="5" stroke="#4fb0f0" stroke-width="5" stroke-linecap="round" /></svg><span>innerhalb einer Wasserkolonie</span></div>
+              <div class="lg-row"><svg width="34" height="10"><line x1="2" y1="5" x2="32" y2="5" stroke="#bfe9ff" stroke-width="3" stroke-dasharray="8 5" /></svg><span>Meeresströmung zwischen Kolonien</span></div>
+              <div class="lg-row"><span class="hint">Gebiete mit gemeinsamer Grenze sind benachbart. Pfeile am Kartenrand = Ost-West-Übergang (z. B. Beringstraße). Gebiet antippen zeigt seine Routen.</span></div>
+              <div class="lg-row"><span class="hint">Küsten: Natural Earth · Mond: NASA/GSFC/Arizona State University</span></div>
+            </>
+          ) : (
+            <>
+              <div class="lg-row"><svg width="34" height="10"><line x1="2" y1="5" x2="32" y2="5" stroke="#f3e6b8" stroke-width="4" stroke-dasharray="2 6" stroke-linecap="round" /></svg><span>Landpassage (ohne Marine)</span></div>
+              <div class="lg-row"><svg width="34" height="10"><line x1="2" y1="5" x2="32" y2="5" stroke="#9fe3ff" stroke-width="3" stroke-dasharray="6 4" /></svg><span>Küste / Seeweg (Marine-Kdt im Spiel)</span></div>
+              <div class="lg-row"><svg width="34" height="10"><line x1="2" y1="5" x2="32" y2="5" stroke="#e6fbff" stroke-width="5" stroke-linecap="round" /></svg><span>innerhalb einer Unterwasserkolonie</span></div>
+              <div class="lg-row"><span class="hint">Linien zum Kartenrand = Ost-West-Übergang. Gebiet antippen zeigt seine Routen.</span></div>
+            </>
+          )}
         </div>
       )}
       <div class="mapctl">

@@ -363,39 +363,70 @@ Jede Partie speichert **ihre** Regelsatz-Version. Spätere Änderungen betreffen
 
 ## 4. Spielbrett: Unterlage, Datenmodell, Generator
 
-### 4.1 Planetenbrett (eigenes Design)
+### 4.1 Erdbrett (Kartenrevision 3, `kepler-earth-3`)
 
-![Planetenbrett](assets/board/planet.png)
+![Erdbrett](assets/board/planet.png)
 
-*Vektordatei: [`assets/board/planet.svg`](assets/board/planet.svg); sie ist die Grundlage für den Client. Das PNG dient nur der Vorschau.*
+*Vektorvorschau: [`assets/board/planet.svg`](assets/board/planet.svg). Der Client rendert dieselbe Geometrie (`content/board/geometry.json`) interaktiv; das PNG dient nur der Vorschau.*
+
+- **Grundlage:** Küsten und Ländergrenzen aus **Natural Earth 1:50 Mio.** (gemeinfrei, über das npm-Paket `world-atlas`). Projektion Miller-Zylinder (84° N bis 58° S), Kartenrand in der Beringstraße (169° W). Das Europa-Band (14° W bis 42° O) ist horizontal um Faktor 1,3 gedehnt, damit die sieben europäischen Gebiete auf dem Handy antippbar bleiben.
+- **Eigene Aufteilung:** Jedes der 42 Landgebiete ist eine Gruppe ganzer Länder. Große Staaten (USA, Kanada, Russland, China, Brasilien, Argentinien, Australien, Malaysia) werden an festen Saatpunkten per Voronoi geteilt. Russland ist am Ural (60° O) zwischen Europa und Asien getrennt. Zuschnitt, Namen, Seewege und Wasserkolonien sind eigene Festlegungen, kein Nachbau eines bestehenden Bretts.
+- **Nachbarschaft** wird aus der Geometrie berechnet:
+  - gemeinsame Landgrenze (Abstand < 2,5 px);
+  - Meerenge < 7 px, sofern die kürzeste Verbindung kein drittes Gebiet quert (z. B. Ärmelkanal, Nares-Straße, La Pérouse);
+  - zusätzlich fünf feste Seewege: Grönland–Britannia, Inselbogen–Outback, Inselbogen–Ostaustralien, Ostaustralien–Neuseeland, Südostasien–Inselbogen.
+- **Kontinentübergänge über Land:** Panama, Sinai, Ural, Bosporus/Kaukasus, Gibraltar, Bab al-Mandab.
+- **Ost-West-Landroute:** Beringia ↔ Fernost über die Beringstraße, gezeichnet über den Kartenrand (Pfeile ◀ ▶).
 
 | Region | Typ | Gebiete | Bonus (MODs + Energie) |
 |---|---|---|---|
-| Borea (BOR) | Kontinent | 9 | +4 |
-| Vellor (VEL) | Kontinent | 7 | +4 |
-| Kaskadia (KAS) | Kontinent | 10 | +6 |
-| Meridia (MER) | Kontinent | 6 | +3 |
-| Sahari (SAH) | Kontinent | 6 | +3 |
-| Insula (INS) | Kontinent | 4 | +2 |
-| Nordmeer, Pelagia, Abyssos (NOR/PEL/ABY) | Wasserkolonie | je 3 | +2 |
-| Korallensee, Südmeer (KOR/SUD) | Wasserkolonie | je 2 | +2 |
+| Nordamerika (BOR) | Kontinent | 9: Beringia, Yukon, Hudson, Labrador, Grönland, Pazifikküste, Prärie, Atlantikküste, Mittelamerika | +4 |
+| Europa (VEL) | Kontinent | 7: Britannia, Skandinavien, Iberia, Gallien, Mitteleuropa, Adria, Osteuropa | +4 |
+| Asien (KAS) | Kontinent | 10: Westsibirien, Taimyr, Jakutien, Fernost, Mittelasien, Hochasien, Vorderasien, Indien, Ostasien, Südostasien | +6 |
+| Südamerika (MER) | Kontinent | 6: Karibikküste, Anden, Amazonas, Ostbrasilien, Pampa, Patagonien | +3 |
+| Afrika (SAH) | Kontinent | 6: Maghreb, Westafrika, Niltal, Kongo, Ostafrika, Südafrika | +3 |
+| Ozeanien (INS) | Kontinent | 4: Inselbogen, Outback, Ostaustralien, Neuseeland | +2 |
+| Nordmeer (NOR) | Wasserkolonie | 3: Irmingersee, Jan-Mayen-Rücken, Barentsschwelle | +2 |
+| Pelagia (PEL) | Wasserkolonie | 3: Kuroshio-Drift, Aleutenrinne, Clarion-Graben | +2 |
+| Abyssos (ABY) | Wasserkolonie | 3: Sargasso-Tiefe, Atlantis-Schwelle, Romanche-Bruch | +2 |
+| Korallensee (KOR) | Wasserkolonie | 2: Riffbank, Tasmanbecken | +2 |
+| Südmeer (SUD) | Wasserkolonie | 2: Maskarenen-Rücken, Südstrom | +2 |
 | **Summe** | | **42 Land + 13 Wasser** | |
 
-- **Zylinderwelt:** Ost- und Westkante sind verbunden (◀ ▶), wie im Regelheft vorgesehen (RH S. 5).
-- **Seewege** (gestrichelt) verbinden isolierte Kontinente für Landinvasionen ohne Marine: BOR-8 ↔ MER-3, VEL-7 ↔ INS-1.
-- Wassergebiete grenzen an Küstengebiete. Mit Marine-Kommandant öffnen sie zusätzliche Angriffswege, z. B. KOR-1 Riffbank zu KAS, SAH und INS.
+- **Wasserkolonien** sind leuchtende Ringe im offenen Meer. Sie sind sparsam angebunden:
+  - je Feld 1–3 Küstenzugänge;
+  - Verbindungen innerhalb der Kolonie als Kette;
+  - drei Meeresströmungen zwischen den Kolonien: Irmingersee–Sargasso-Tiefe, Romanche-Bruch–Maskarenen-Rücken (um das Kap), Riffbank–Clarion-Graben (über den Kartenrand).
 
-### 4.2 Mondbrett (eigenes Design)
+  Insgesamt gibt es 33 Wasserlinien (22 Küste, 8 Kolonie, 3 Strömung) statt 86 in Revision 1/2. Hinzu kommen 9 gepunktete Seewege/Meerengen zwischen Landgebieten.
+- Die Kontinentboni sind aus Revision 1/2 unverändert übernommen. Ihre Balance auf dem neuen Graphen ist noch offen (§4.3, STATUS).
+
+### 4.2 Mondbrett (NASA-Mosaik)
 
 ![Mondbrett](assets/board/moon.png)
 
+- **Hintergrund:** NASA/GSFC/Arizona State University, LROC-WAC-Mosaik der Vorderseite (gemeinfrei), orthographisch. Es wird zugeschnitten nach `src/client/public/board/moon.jpg` (1000 × 1000 px, Scheibe r = 440).
+- **Gebiete:** sphärisches Voronoi um reale Formationen. Die Grenzen sind exakte Großkreisbögen, Nachbarschaft = gemeinsame Kante. Die Landeplätze liegen an Apollo-Landestellen.
+
 | Region | Gebiete | Bonus | Landeplatz |
 |---|---|---|---|
-| Selene-Hochland (HOC) | 6 | +4 | HOC-1 Landeplatz Alpha |
-| Mare Tenebris (TEN) | 4 | +3 | TEN-1 Landeplatz Beta |
-| Polarkappe (POL) | 4 | +2 | POL-1 Landeplatz Gamma |
+| Selene-Hochland (HOC) | 6: Tranquillitatis, Mare Crisium, Mare Nectaris, Ptolemaeus, Tycho, Clavius | +4 | HOC-1 Tranquillitatis – „Alpha“ (Apollo 11) |
+| Mare Tenebris (TEN) | 4: Kopernikus, Kepler-Krater, Aristarchus, Mare Humorum | +3 | TEN-1 Kopernikus – „Beta“ (Apollo 12) |
+| Polarkappe (POL) | 4: Hadley-Rille, Mare Imbrium, Mare Frigoris, Mare Serenitatis | +2 | POL-1 Hadley-Rille – „Gamma“ (Apollo 15) |
 
-Verbindung Planet ↔ Mond: von jeder eigenen Station zu **jedem** Landeplatz, nur mit den Einheiten im Stationsgebiet. Das ist eine virtuelle Kante (`specialLinks.orbital`). Für die Truppenbewegung gilt sie in beide Richtungen, für Invasionen nur Erde → Mond.
+Verbindung Erde ↔ Mond: von jeder eigenen Station zu **jedem** Landeplatz, nur mit den Einheiten im Stationsgebiet. Das ist eine virtuelle Kante (`specialLinks.orbital`). Für die Truppenbewegung gilt sie in beide Richtungen, für Invasionen nur Erde → Mond.
+
+### 4.1a Kartenrevisionen und alte Partien
+
+| `mapId` | Brett | Graph | Hinweis |
+|---|---|---|---|
+| `kepler-colonies` (Rev. 1) | Kepler-Fantasiekarte | `content/board/legacy/kepler-colonies-map.json` | ursprünglicher Stand, keine Ost-West-Landroute |
+| `kepler-colonies-2` (Rev. 2) | Kepler-Fantasiekarte | wie Rev. 1 + Kaltmark ↔ Kupferhang | Zwischenstand dieser Überarbeitung |
+| `kepler-earth-3` (Rev. 3) | Erde & Mond | `content/board/map.json` | **Standard für neue Partien** |
+
+- **IDs:** Gebiets-IDs, Regionen, Gebietstypen, Landeplätze und Boni sind in allen Revisionen identisch. Spielstände bleiben dadurch ohne Migration ladbar.
+- **Unterschiede:** Nachbarschaft (`neighborsFor`), Namen (`territoryName`) und Darstellung (`legacy/kepler-colonies-geometry.json`).
+- **Laufende Partien** behalten ihre Kennung. Sie spielen und zeigen damit weiter die Karte, mit der sie begonnen wurden.
 
 ### 4.3 Boni
 
@@ -406,41 +437,43 @@ Heuristik, kalibriert an Classic-Kontinentwerten: `bonus = round(0,4 · Gebiete 
 ```json
 {
   "schema": "map/v1",
-  "id": "kepler-colonies",
+  "id": "kepler-earth-3",
   "boards": [
     { "id": "planet", "width": 2000, "height": 1000, "svg": "planet.svg", "wrapX": true },
-    { "id": "moon", "width": 1000, "height": 1000, "svg": "moon.svg" }
+    { "id": "moon", "width": 1000, "height": 1000, "svg": "moon.svg", "texture": "board/moon.jpg" }
   ],
-  "regions": [ { "id": "KAS", "name": "Kaskadia", "kind": "continent", "bonus": 6, "borderTerritories": 4 } ],
+  "regions": [ { "id": "KAS", "name": "Asien", "kind": "continent", "bonus": 6, "borderTerritories": 7 } ],
   "territories": [
-    { "id": "KAS-10", "name": "Donnerkamm", "type": "land", "region": "KAS", "board": "planet",
-      "label": [1021, 669], "adjacent": ["ABY-3","KAS-6","KAS-7","KAS-8","KAS-9","KOR-1","SAH-1"] },
-    { "id": "HOC-1", "name": "Landeplatz Alpha", "type": "moon", "region": "HOC", "board": "moon",
-      "landingSite": true, "label": [...], "adjacent": [...] }
+    { "id": "BOR-1", "name": "Beringia", "type": "land", "region": "BOR", "board": "planet",
+      "label": [...], "adjacent": ["BOR-2","BOR-6","KAS-4","PEL-2"] },
+    { "id": "HOC-1", "name": "Tranquillitatis", "type": "moon", "region": "HOC", "board": "moon",
+      "landingSite": true, "landingName": "Landeplatz Alpha (Apollo 11)", "label": [...], "adjacent": [...] }
   ],
-  "seaLanes": [["BOR-8","MER-3"], ["VEL-7","INS-1"]],
+  "seaLanes": [["BOR-5","VEL-1"], ["INS-3","INS-4"], ...],
   "specialLinks": [ { "kind": "orbital", "from": "anySpaceStation", "to": "landingSites",
                       "requires": "spaceCommanderInPlay" } ]
 }
 ```
 
-Die Pfad-IDs im SVG entsprechen den Territorien-IDs (`<path id="KAS-10" …>`). Der Client färbt per CSS; eine zweite Geometriequelle gibt es nicht.
+Die Darstellung steht in `content/board/geometry.json` (Pfade, Beschriftungen, Trefferflächen, Routen, Gradnetz). Graph und Geometrie werden vom selben Generator erzeugt; `tests/board.test.ts` prüft für jede Revision, dass jede Graphkante als Grenze oder Route sichtbar ist und die Darstellung keine Nachbarschaft erfindet.
 
 ### 4.5 Generator
 
-- [`tools/board-generator/generate_board.py`](../tools/board-generator/generate_board.py), deterministisch (Seed 2210):
-  1. Voronoi-Zellen mit Lloyd-Relaxation erzeugen.
-  2. Landmasken aus verrauschten Ellipsen ableiten.
-  3. Regionen balanciert wachsen lassen.
-  4. Adjazenzen über echte gemeinsame Kanten bestimmen.
-  5. Seewege per Kruskal setzen.
-- Prüfungen beim Generieren: keine isolierten Gebiete, keine zerstückelten Polygone, Zielgrößen 42/13/14 eingehalten.
-- [`generate_mockups.py`](../tools/board-generator/generate_mockups.py) erzeugt die Wireframes (§9).
+- **Revision 3** wird von [`tools/board-generator/earth_board.py`](../tools/board-generator/earth_board.py) erzeugt (Graph und Geometrie, deterministisch).
+  - Beim Generieren wird geprüft:
+    - Planet, jede Region und jede Mondkolonie hängen zusammen;
+    - der Graph ist symmetrisch;
+    - Wasserfelder halten Abstand zu Land und zueinander;
+    - jede Kante ist dargestellt.
+  - [`preview_earth.py`](../tools/board-generator/preview_earth.py) erzeugt die SVG-Vorschauen.
+- **Revision 1/2** stammt aus `generate_board.py` (Voronoi, Lloyd, Seed 2210) und `render_board.py`. Beide sind eingefroren; ihre Ergebnisse liegen unter `content/board/legacy/`.
 
 ```bash
-pip install numpy scipy shapely
-python3 tools/board-generator/generate_board.py docs/assets/board
-python3 tools/board-generator/generate_mockups.py docs/assets/board docs/assets/ui
+pip install numpy scipy shapely pillow
+npm ci                                   # world-atlas, topojson-client (devDependencies)
+node tools/board-generator/export_countries.mjs /tmp/countries.geojson
+python3 tools/board-generator/earth_board.py /tmp/countries.geojson <LROC-WAC-Nearside.jpg>
+python3 tools/board-generator/preview_earth.py
 ```
 
 ---

@@ -713,11 +713,12 @@ def main(countries_path, moon_src):
         g = unary_union([moon_geom[i].buffer(0.6) for i in MOON if reg_of(i) == rid]).buffer(-0.6)
         gp = g.representative_point()
         ang = math.atan2(gp.y - MCY, gp.x - MCX)
-        if abs(math.cos(ang)) < 0.35:
-            lx, ly = MCX, (28 if math.sin(ang) < 0 else MH - 28)
+        # oben links/rechts liegen im Client Brettumschalter und Zoomknöpfe -> seitliche Kolonien unten beschriften
+        if abs(math.cos(ang)) < 0.35 and math.sin(ang) < 0:
+            lx, ly = MCX, 28
         else:
-            lx = MCX + math.copysign(MW / 2 - 150, math.cos(ang))
-            ly = MCY + math.copysign(MH / 2 - 38, math.sin(ang))
+            lx = MCX + (0 if abs(math.cos(ang)) < 0.35 else math.copysign(MW / 2 - 150, math.cos(ang)))
+            ly = MH - 28
         regions_out[rid] = {'outline': P(g.simplify(1.0)), 'color': REGION_COLORS[rid], 'label': [round(lx), round(ly)], 'labelMode': 'outside'}
 
     # Trefferflächen der Wasserfelder
@@ -751,8 +752,8 @@ def main(countries_path, moon_src):
                 p = Point(x, y)
                 if inner.contains(p) and p.buffer(30).disjoint(name_box):
                     d = p.distance(lab)
-                    if 40 <= d <= 120:
-                        score = -abs(d - 60) - 0.3 * abs(p.y - lab.y + 45)
+                    if 75 <= d <= 150:   # Abstand zum Einheitenmarker (und dessen Kommandanten-Chips oben rechts)
+                        score = -abs(d - 90) - 0.3 * abs(p.y - lab.y - 20) - (40 if p.x > lab.x and p.y < lab.y else 0)
                         if best is None or score > best[0]:
                             best = (score, x, y)
         assert best, f'Kein Platz für Landeplatz-Marker in {tid}'

@@ -2,6 +2,88 @@
 
 Stand: 2026-11-12. Grundlage ist [`KONZEPT.md`](KONZEPT.md) v1.3. Dieses Dokument trennt ehrlich, was fertig und getestet ist, was vereinfacht umgesetzt wurde und was noch fehlt.
 
+## 0. Überarbeitung Spielbrett und Regelmechanik (2026-11-12)
+
+### 0.1 Neues Brett: Erde & Mond (Kartenrevision 3)
+
+| | Vorher (Rev. 1, Stand `c7e5bfb`) | Nachher (Rev. 3) |
+|---|---|---|
+| Planet, Handy (iPhone SE) | ![vorher](assets/screenshots/vergleich/vorher-planet-handy.jpg) | ![nachher](assets/screenshots/vergleich/nachher-erde-handy.jpg) |
+| Mond, Handy | ![vorher](assets/screenshots/vergleich/vorher-mond-handy.jpg) | ![nachher](assets/screenshots/vergleich/nachher-mond-handy.jpg) |
+| Tablet quer (iPad) | ![vorher](assets/screenshots/vergleich/vorher-tablet.jpg) | ![nachher](assets/screenshots/vergleich/nachher-tablet.jpg) |
+
+Weitere Aufnahmen:
+- [Beringstraße über den Kartenrand](assets/screenshots/vergleich/nachher-beringstrasse-handy.jpg)
+- [Wasserkolonie mit Marine angreifen](assets/screenshots/vergleich/nachher-wasserkolonie-handy.jpg)
+- [Mond auf dem Tablet](assets/screenshots/vergleich/nachher-tablet-mond.jpg)
+- [Alte Partie behält ihre Karte](assets/screenshots/vergleich/nachher-alte-partie-handy.jpg)
+
+- **Erde:**
+  - Küsten aus Natural Earth (gemeinfrei);
+  - **eigene** Aufteilung in 42 Gebiete aus ganzen Ländern bzw. geteilten Großstaaten, mit eigenen Namen;
+  - Kontinente in kräftigen Farben, dunkles Meer mit Gradnetz;
+  - 13 Wasserfelder als Ringe in 5 Kolonien, sparsam verbunden: 33 Wasserlinien statt 86, nur 9 gepunktete Seewege.
+
+  Details stehen in KONZEPT §4.1.
+- **Mond:**
+  - NASA-LROC-Mosaik der Vorderseite (gemeinfrei), entnommen aus der bereitgestellten `moon.svg`;
+  - 14 Gebiete an realen Formationen (Kopernikus, Kepler-Krater, Tycho …);
+  - Landeplätze an den Apollo-Landestellen 11, 12 und 15.
+
+  Details stehen in KONZEPT §4.2.
+- **Bewusst nicht übernommen:** Gebietsaufteilung, Namen, Boni und Schriftzug der als Stilvorlage bereitgestellten Entwürfe. Deren Umrisse sind laut Metadaten vom Originalbrett abgezeichnet; Kepler-Kolonien nutzt nur den Stil (Farben, Ringe, Legende, Mondtextur).
+- **Ost-West-Landroute:** In Rev. 3 ist es die Beringstraße (Beringia ↔ Fernost). Sie ist über den Kartenrand gezeichnet und braucht keinen Marine-Kommandanten.
+- **Alte Partien:**
+  - Spielstände mit `mapId` `kepler-colonies` (Rev. 1) und `kepler-colonies-2` (Rev. 2) behalten Graph, Gebietsnamen und Darstellung. Die Kepler-Fantasiekarte liegt unter `content/board/legacy/`.
+  - Neue Partien starten mit `kepler-earth-3`.
+  - Die IDs sind in allen Revisionen gleich; Spielstände brauchen keine Migration.
+  - Abgesichert durch `tests/regression.test.ts` (Fixture `alte-partie-c7e5bfb.json` läuft bis zum Spielende) und den Browser-Schritt 9 in `tests/e2e/map-scenarios.cjs`.
+
+### 0.2 Behobene Regelfehler (Abschnitt 3 der Anforderung)
+
+| Nr. | Fehler | Behebung |
+|---|---|---|
+| 3.1 | Erdlandung auf eigenes Gebiet löste Kampf aus | Verlegung ohne Kampf. Gegner = normale Invasion, frei = Besetzung, ohne Raum-Kdt unzulässig |
+| 3.2 | Taktischer Sprengkopf auf den letzten Verteidiger ließ das Gebiet in einem inkonsistenten Zustand | Nachrücken, danach Übernahme, Ausscheiden und Wertung; auch mit Station im Ziel |
+| 3.3 | Fiel der Marine-/Raum-Kdt, durfte weitergewürfelt werden (auch im Blitz) | Prüfung vor jedem Wurf, sauberer Stopp mit Begründung |
+| 3.4 | W8 wurde erzwungen | Angreifer wählt die W8-Kommandanten je Wurf (`Attack.d8`); Nachrückpflicht folgt dem letzten Wurf; altes Befehlsformat bleibt gültig |
+| 3.5 | Bonuskarte nach 3 umkämpften Eroberungen ließ sich überspringen | serverseitig erzwungen; ohne verfügbares Deck nur Energie |
+| 3.6 | Startspieler mit Sitzplatzverzerrung; öffentliche Befehle ungeprüft | W6 je Spieler mit Stechen; Laufzeitvalidierung aller Befehle (`validate.ts`) |
+| – | Wertung ohne früher ausgeschiedene Spieler | korrigiert |
+
+Jeder Fehler ist durch einen Regressionstest abgedeckt. Am Ausgangsstand `c7e5bfb` schlagen 10 von 15 dieser Tests fehl, nach der Behebung keiner.
+
+### 0.3 Ausgeführte Prüfungen
+
+- **Engine:** `npm run typecheck` ohne Fehler; `npm test` mit 45/45 Tests (Engine, Regression, Brett-Konsistenz für Rev. 1/2 und 3, Server-Integration).
+- **Bot-Simulationen auf der Erdkarte** mit Invariantenprüfung nach jedem Befehl, ohne Fehler:
+  - 40 Partien mit 2 Spielern, 40 mit 3, 40 mit 5 (Schnellaufstellung);
+  - 15 Partien mit 4 Spielern (klassische Aufstellung).
+- **Browser (Playwright, iPhone SE hoch und iPad quer):** `tests/e2e/map-scenarios.cjs`:
+  - Gesamtansicht und Legende;
+  - kleine Wasserfelder antippen;
+  - Meerenge ohne Marine;
+  - W6 statt W8;
+  - Wasserangriff ohne/mit Marine;
+  - Mondlandung;
+  - Rückverlegung vom Mond;
+  - Beringstraße über den Rand;
+  - Tablet Erde/Mond;
+  - alte Partie.
+
+  Dazu `mobile-playthrough.cjs` und `multiplayer.cjs` (Ergebnis siehe Commit-Nachricht).
+
+### 0.4 Offen bzw. nicht verifiziert
+
+- **Balance der Erdkarte:** Die Kontinentboni (+4/+4/+6/+3/+3/+2) sind aus Rev. 1/2 übernommen. Auf dem neuen Graphen hat Europa 5 von 7 Grenzgebieten, Nordamerika 6 von 9. Eine Auswertung der Siegquoten je Startregion steht aus.
+- **Lesbarkeit:**
+  - In der Gesamtansicht am Handy werden verdeckte Beschriftungen von Wasserkolonien ausgeblendet; sie erscheinen beim Zoomen und stehen immer in der Legende.
+  - Gebietsnamen erscheinen erst ab einer Zoomstufe.
+  - Auf echten Geräten nicht geprüft.
+- **Gebietsgrenzen in Russland, Kanada, USA, China und Australien** sind gerade Voronoi-Linien, keine Verwaltungsgrenzen. Das ist bewusst abstrahiert.
+- **Zählung:** Die Anforderung nennt „71 IDs“. Die Karte hat in allen Revisionen 69 Gebiete (42 Land + 13 Wasser + 14 Mond); die Differenz ließ sich keinem Element zuordnen.
+- Die Mondtextur wird vom Service Worker vorab geladen. Wird sie geändert, ändert sich der Cache-Schlüssel erst mit dem nächsten Client-Build.
+
 ## 1. Fertig und getestet
 
 ### Spiel-Engine (`src/engine`)
@@ -21,7 +103,7 @@ Stand: 2026-11-12. Grundlage ist [`KONZEPT.md`](KONZEPT.md) v1.3. Dieses Dokumen
 - **Projektion:** fremde Handkarten, Gebote vor dem Aufdecken, Deck-Reihenfolge und RNG verlassen den Server nicht. Öffentlich sind Energie sowie Typ und Anzahl der Karten (RH S. 1).
 - **Heuristik-Bot (Stufe 1)**: spielt alle Phasen und Kartenarten. Er wird für Gegner, die Vertretung bei Fristablauf und „Kontrolle abgeben“ genutzt.
 - **Tests:**
-  - 14 Unit-/Property-Tests, darunter Score-Chart, W8-Regeln, Wasser/Mond, Pfadbewegung, Projektion ohne Leaks, Reaktionen.
+  - 45 Tests (Engine, Regression 3.1–3.6, Brett-Konsistenz je Kartenrevision, Server); darunter darunter Score-Chart, W8-Regeln, Wasser/Mond, Pfadbewegung, Projektion ohne Leaks, Reaktionen.
   - Bot-gegen-Bot-Simulation mit Invarianten-Prüfung nach jedem Befehl: über 100 Partien mit 2–5 Spielern ohne Fehler.
 
 ### Server (`src/server`)
@@ -37,7 +119,7 @@ Stand: 2026-11-12. Grundlage ist [`KONZEPT.md`](KONZEPT.md) v1.3. Dieses Dokumen
 
 ### Client (`src/client`)
 - **PWA** (Preact): installierbar, Service Worker mit Offline-App-Shell, Push-Empfang, Icons.
-- **Spielbrett:** SVG-Karte (Planet und Mond, eigenes Design aus `tools/board-generator`).
+- **Spielbrett:** SVG-Karte (Erde und Mond, Kartenrevision 3 aus `tools/board-generator/earth_board.py`; alte Partien mit der Kepler-Fantasiekarte).
   - Pinch-Zoom und Wischen, nahtloser Ost-West-Umlauf, im Hochformat auf volle Höhe skaliert.
   - Besitzerfarben, Einheiten, Kommandanten, Stationen, Landeplätze, verwüstete Gebiete.
   - Gültige Ziele werden hervorgehoben.

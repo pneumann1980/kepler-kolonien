@@ -15,20 +15,25 @@ fs.mkdirSync(SHOTS, { recursive: true });
   page.on('pageerror', (e) => { console.error('PAGEERROR', e.message); process.exitCode = 1; });
   const shot = async (name) => { await page.waitForTimeout(400); await page.screenshot({ path: `${SHOTS}/${name}.png` }); console.log('📸', name); };
   const state = async () => (await page.evaluate(async (id) => (await (await fetch(`/api/games/${id}/state`)).json()).state, gameId));
+  const visibleBadge = async (id) => {
+    const box = await page.locator('svg.board').boundingBox();
+    const loc = page.locator(`g.badge[data-tid="${id}"] circle.anchor`);
+    const n = await loc.count();
+    for (let i = 0; i < n; i++) {
+      const bb = await loc.nth(i).boundingBox({ timeout: 500 }).catch(() => null);
+      if (bb && bb.x > box.x + 10 && bb.x < box.x + box.width - 60 && bb.y > box.y + 45 && bb.y < box.y + box.height - 50) return bb;
+    }
+    return null;
+  };
+  // sichtbare Kopie antippen (der Ost-West-Umlauf rendert Kopien links/rechts neben dem Brett)
   const tap = async (tid) => {
-    const loc = page.locator(`g.badge[data-tid="${tid}"] circle`).first();
-    if (await loc.count()) { await loc.click({ force: true }); return; }
+    const bb = await visibleBadge(tid);
+    if (bb) { await page.mouse.click(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.waitForTimeout(150); return; }
     await page.locator(`g.terr[data-tid="${tid}"] path`).first().click({ force: true });
   };
   const visible = async (ids) => {
-    const box = await page.locator('svg.board').boundingBox();
     const out = [];
-    for (const id of ids) {
-      const loc = page.locator(`g.badge[data-tid="${id}"] circle`);
-      if (!(await loc.count())) continue;
-      const bb = await loc.first().boundingBox({ timeout: 500 }).catch(() => null);
-      if (bb && bb.x > box.x + 10 && bb.x < box.x + box.width - 10 && bb.y > box.y + 45 && bb.y < box.y + box.height - 50) out.push(id);
-    }
+    for (const id of ids) if (await visibleBadge(id)) out.push(id);
     return out;
   };
   const waitMine = async (pred, label, ms = 60000) => {
@@ -122,10 +127,9 @@ fs.mkdirSync(SHOTS, { recursive: true });
     let tid = null;
     for (const h of await page.locator('g.terr path.pulse').all()) {
       const id = await h.evaluate((el) => el.parentElement.getAttribute('data-tid'));
-      const loc = page.locator(`g.badge[data-tid="${id}"] circle`);
-      const bb = (await loc.count()) ? await loc.first().boundingBox({ timeout: 500 }).catch(() => null) : null;
+      const bb = await visibleBadge(id);
       const o = s.territories[id].owner;
-      if (bb && o && o !== me && bb.x > box.x + 10 && bb.x < box.x + box.width - 10 && bb.y > box.y + 40 && bb.y < box.y + box.height - 50) { tid = id; break; }
+      if (bb && o && o !== me && bb.y > box.y + 40) { tid = id; break; }
     }
     if (!tid) continue;
     await tap(tid);

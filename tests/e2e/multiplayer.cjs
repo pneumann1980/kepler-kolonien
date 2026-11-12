@@ -24,18 +24,27 @@ async function player(browser, device, name) {
 async function stateOf(page, id) {
   return page.evaluate(async (gid) => (await (await fetch(`/api/games/${gid}/state`)).json()).state, id);
 }
-async function visible(page, ids) {
+/** sichtbare Kopie eines Gebietsmarkers (der Ost-West-Umlauf rendert Kopien links/rechts neben dem Brett) */
+async function visibleBadge(page, id) {
   const box = await page.locator('svg.board').boundingBox();
-  const out = [];
-  for (const id of ids) {
-    const loc = page.locator(`g.badge[data-tid="${id}"] circle`);
-    if (!(await loc.count())) continue;
-    const bb = await loc.first().boundingBox({ timeout: 500 }).catch(() => null);
-    if (bb && bb.x > box.x + 10 && bb.x < box.x + box.width - 10 && bb.y > box.y + 45 && bb.y < box.y + box.height - 50) out.push(id);
+  const loc = page.locator(`g.badge[data-tid="${id}"] circle.anchor`);
+  const n = await loc.count();
+  for (let i = 0; i < n; i++) {
+    const bb = await loc.nth(i).boundingBox({ timeout: 500 }).catch(() => null);
+    if (bb && bb.x > box.x + 10 && bb.x < box.x + box.width - 60 && bb.y > box.y + 45 && bb.y < box.y + box.height - 50) return { loc: loc.nth(i), bb };
   }
+  return null;
+}
+async function visible(page, ids) {
+  const out = [];
+  for (const id of ids) if (await visibleBadge(page, id)) out.push(id);
   return out;
 }
-const tap = (page, id) => page.locator(`g.badge[data-tid="${id}"] circle`).first().click({ force: true });
+const tap = async (page, id) => {
+  const v = await visibleBadge(page, id);
+  if (v) return page.mouse.click(v.bb.x + v.bb.width / 2, v.bb.y + v.bb.height / 2);
+  return page.locator(`g.badge[data-tid="${id}"] circle`).first().click({ force: true });
+};
 
 async function quickSetup(page, id) {
   const s = await stateOf(page, id);
