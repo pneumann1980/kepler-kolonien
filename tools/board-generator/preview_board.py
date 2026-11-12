@@ -70,8 +70,10 @@ def planet():
             continue
         col = G['regions'][d['region']]['color']
         f = 1.0 + 0.06 * ((k * 7) % 5 - 2)
-        stroke = '#0b1322' if d['type'] == 'land' else '#e8fbff'
-        o.append(f'<path d="{t["d"]}" fill="{shade(col, f)}" stroke="{stroke}" stroke-width="{1.6 if d["type"] == "land" else 2.5}" stroke-linejoin="round"/>')
+        if d['type'] == 'land':
+            o.append(f'<path d="{t["d"]}" fill="{shade(col, f)}" stroke="#0b1322" stroke-width="1.6" stroke-linejoin="round"/>')
+        else:
+            o.append(f'<path d="{t["d"]}" fill="#123a63" stroke="{col}" stroke-width="7"/><path d="{t["d"]}" fill="none" stroke="#e8fbff" stroke-width="1.5"/>')
     for cid, reg in G['regions'].items():
         if R[cid]['kind'] == 'continent':
             o.append(f'<path d="{reg["outline"]}" fill="none" stroke="#06101d" stroke-width="4.5" stroke-linejoin="round"/>')
@@ -83,8 +85,10 @@ def planet():
         if d['board'] != 'planet':
             continue
         x, y = t['label']
-        fs = 14 if d['type'] == 'land' else 12
-        o.append(f'<text x="{x}" y="{y + 4}" font-size="{fs}" font-weight="700" text-anchor="middle" fill="#0b1322" paint-order="stroke" stroke="#ffffff" stroke-width="3" stroke-opacity="0.65">{d["name"]}</text>')
+        if d['type'] == 'land':
+            o.append(f'<text x="{x}" y="{y + 4}" font-size="14" font-weight="700" text-anchor="middle" fill="#0b1322" paint-order="stroke" stroke="#ffffff" stroke-width="3" stroke-opacity="0.65">{d["name"]}</text>')
+        else:
+            o.append(f'<text x="{x}" y="{y + 52}" font-size="12" font-weight="700" text-anchor="middle" fill="#e8fbff" paint-order="stroke" stroke="#0b1220" stroke-width="3">{d["name"]}</text>')
     for cid, reg in G['regions'].items():
         if R[cid]['kind'] in ('continent', 'waterColony'):
             x, y = reg['label']

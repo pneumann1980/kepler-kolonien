@@ -3,11 +3,12 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import {
   CARD, cardType, COMMANDER_TYPES, COMMANDER_NAMES, COSTS, MAX_STATIONS, MAX_CARD_BUY, TDEF, RDEF, units,
   invadeError, pathExists, commanderInPlay, commanderLocation, stationCount, validTargets, planDice,
-  conquestProbability, maxAttackDice, computeIncome, owned, COLOR_NAMES,
+  conquestProbability, maxAttackDice, computeIncome, owned, COLOR_NAMES, attackBlocker, qualifyingAttackCommanders,
+  REGION_MEMBERS, LANDING_SITES, nbrs,
 } from '../../engine/index.ts';
 import type { Command, CommanderType, GameState, Player, UnitMove, CardDef, Targets } from '../../engine/index.ts';
 import { sendCommand, api, type GameView, type Live, type Me } from '../api.ts';
-import { Board } from './Board.tsx';
+import { Board, routesFor } from './Board.tsx';
 import { Btn, Dot, Stepper, UnitPicker, timeLeft } from './widgets.tsx';
 import { Hand, cardStatus } from './Hand.tsx';
 import { Players } from './Players.tsx';
@@ -223,6 +224,7 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
       return;
     }
     if (myTurn && !inv && (turn?.step === 'main' || turn?.step === 'hire' || turn?.step === 'buy' || turn?.step === 'fortify')) {
+      if (sel === id) { setSel(null); setTarget(null); return; } // erneut tippen = abwählen
       if (sel && targets.has(id)) { setTarget(id); return; }
       if (t.owner === myId && units(t) >= 2) { setSel(id); setTarget(null); return; }
     }
@@ -257,6 +259,7 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
             <div>{waitingText()}</div>
             {view!.deadlineAt && <div class="hint">Frist: {timeLeft(view!.deadlineAt)} – danach übernimmt ein Bot.</div>}
             {sel && <TerritoryInfo id={sel} view={view!} players={players} />}
+            {!sel && <div class="hint">Tippe ein Gebiet für Region, Bonus und Routen.</div>}
           </div>
         </>
       );
@@ -427,6 +430,7 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
       const err = invadeError(s, myId!, src, target);
       const tt = v.territories[target];
       if (err) return <div class="box">{err} <Btn kind="ghost" small onClick={() => setTarget(null)}>Zurück</Btn></div>;
+      if (tt.owner === myId) return <OccupyBox title="Erdlandung: Verlegung ohne Kampf" from={src} to={target} view={v} busy={busy} onGo={(move) => { send({ t: 'Invade', from: src, to: target, move }, 'Einheiten verlegt'); setTarget(null); }} onCancel={() => setTarget(null)} />;
       if (units(tt) === 0) return <OccupyBox from={src} to={target} view={v} busy={busy} onGo={(move) => { send({ t: 'Invade', from: src, to: target, move }); setTarget(null); }} onCancel={() => setTarget(null)} />;
       return (
         <div class="box">
@@ -444,7 +448,8 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
       <div class="box">
         <div class="title">Karten spielen & Invasionen</div>
         <div>{src ? `${TDEF[src].name} gewählt – tippe ein markiertes Ziel (${targets.size}).` : 'Tippe auf ein eigenes Gebiet mit mindestens 2 Einheiten als Angriffsquelle.'}</div>
-        {otherBoardTargets && <div class="hint warn">Es gibt Ziele auf dem {board === 'planet' ? 'Mond' : 'Planeten'} – Brett umschalten.</div>}
+        {src && <MoonLaunch src={src} />}
+        {otherBoardTargets && !(src && v.territories[src].station) && <div class="hint warn">Es gibt Ziele auf dem {board === 'planet' ? 'Mond' : 'Planeten'} – <a onClick={() => setBoard(board === 'planet' ? 'moon' : 'planet')}>Brett wechseln</a>.</div>}
         {!v.turn!.invaded && <div class="hint">Vor der ersten Invasion: Karten (VOR) im Tab „Hand“ spielen.</div>}
         <div class="btnrow">
           <Btn kind="ghost" onClick={() => setTab('hand')}>Hand ({meP?.hand.length ?? 0})</Btn>
@@ -454,16 +459,42 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
     );
   }
 
+  function MoonLaunch({ src }: { src: string }) {
+    const v = view!;
+    const t = v.territories[src];
+    if (TDEF[src].board !== 'planet' || TDEF[src].type !== 'land') return null;
+    if (!t.station) return board === 'planet' ? <div class="hint">Mondlandung nur von einem Gebiet mit eigener Raumstation.</div> : null;
+    const missing = units(t) < 2 ? 'Im Stationsgebiet müssen mindestens 2 Einheiten stehen.'
+      : !commanderInPlay(s, myId!, 'SPACE') ? 'Raum-Kommandant muss im Spiel sein (Ort egal) – im Schritt „Anheuern“ für 3 Energie.'
+        : null;
+    const sites = LANDING_SITES.filter((id) => targets.has(id));
+    return (
+      <div class="moonlaunch">
+        {missing ? <div class="hint warn">🚀 Mondlandung nicht möglich: {missing}</div> : (
+          <>
+            <Btn small kind="warn" onClick={() => setBoard('moon')}>🚀 Mondlandung ({sites.length} Landeplatz/-plätze)</Btn>
+            {board === 'moon' && <span class="hint"> Quelle: {TDEF[src].name} – tippe einen markierten Landeplatz.</span>}
+          </>
+        )}
+      </div>
+    );
+  }
+
   function renderFortify() {
     const v = view!;
     const src = sel && v.territories[sel]?.owner === myId && units(v.territories[sel]) >= 2 ? sel : null;
     if (src && target && targets.has(target)) {
-      return <FortifyBox from={src} to={target} view={v} busy={busy} onGo={(move) => { send({ t: 'Fortify', from: src, to: target, move }); setSel(null); setTarget(null); }} onCancel={() => setTarget(null)} />;
+      const canReverse = units(v.territories[target]) >= 2 && pathExists(s, myId!, target, src);
+      return <FortifyBox key={`${src}>${target}`} from={src} to={target} view={v} busy={busy} onGo={(move) => { send({ t: 'Fortify', from: src, to: target, move }); setSel(null); setTarget(null); }} onCancel={() => setTarget(null)}
+        onReverse={canReverse ? () => { setSel(target); setTarget(src); } : undefined} />;
     }
     return (
       <div class="box">
         <div class="title">Truppenbewegung ({v.turn!.fortifiesLeft}×)</div>
-        <div>{src ? 'Tippe ein markiertes Zielgebiet (Pfad über eigene Gebiete).' : 'Tippe ein eigenes Gebiet mit mindestens 2 Einheiten als Quelle.'}</div>
+        <div>{src ? `${TDEF[src].name} gewählt – tippe ein markiertes Zielgebiet (Pfad über eigene Gebiete); erneut tippen hebt die Auswahl auf.` : 'Tippe ein eigenes Gebiet mit mindestens 2 Einheiten als Quelle.'}</div>
+        {src && otherBoardTargets && (
+          <div class="hint ok">Über eigene Station ⇄ eigenen Landeplatz erreichbar: Ziele auf dem {board === 'planet' ? 'Mond' : 'Planeten'} – <a onClick={() => setBoard(board === 'planet' ? 'moon' : 'planet')}>Brett wechseln</a> (kein Raum-Kommandant nötig).</div>
+        )}
         <div class="btnrow">
           <Btn kind="ghost" onClick={() => send({ t: 'EndPhase' })}>Ohne Bewegung weiter</Btn>
           <Btn kind="danger" onClick={() => send({ t: 'EndTurn' })}>Zug beenden</Btn>
@@ -495,8 +526,8 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
         </div>
       );
     }
-    return <AttackBox key={v.version} view={v} s={s} me={me} players={players} busy={busy} battle={lastBattle}
-      onAttack={(dice, blitz) => send({ t: 'Attack', dice, blitz, minRemaining: 2 })}
+    return <AttackBox key={`${i.from}>${i.to}`} view={v} s={s} me={me} players={players} busy={busy} battle={lastBattle}
+      onAttack={(dice, blitz, d8) => send({ t: 'Attack', dice, blitz, minRemaining: 2, d8 })}
       onRetreat={() => send({ t: 'Retreat' })}
       onCard={(c) => send({ t: 'PlayCard', card: c })} />;
   }
@@ -589,8 +620,8 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
             <button class={board === 'planet' ? 'on' : ''} onClick={() => setBoard('planet')}>Planet</button>
             <button class={board === 'moon' ? 'on' : ''} onClick={() => setBoard('moon')}>Mond{otherBoardTargets && board === 'planet' ? ' •' : ''}</button>
           </div>
-          <Board view={view} board={board} selected={target ?? sel} targets={targets} overlay={overlay} flash={flash} onTap={onTap} />
-          {sel && !inv && tab === 'map' && <div class="selinfo"><TerritoryInfo id={sel} view={view} players={players} compact /></div>}
+          <Board view={view} board={board} selected={target ?? sel} focus={target ?? sel} targets={targets} overlay={overlay} flash={flash} onTap={onTap} />
+          {sel && !inv && tab === 'map' && TDEF[target ?? sel].board === board && <div class="selinfo"><TerritoryInfo id={target ?? sel} view={view} players={players} compact /></div>}
         </section>
         <section class="side">
           {tab === 'map' && <div class="panel">{panel}</div>}
@@ -623,16 +654,52 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
 }
 
 // ================================================================== Teil-Komponenten
+const ROUTE_KIND: Record<string, string> = { border: 'Grenze', strait: 'Landpassage', coast: 'Küste (Marine)', water: 'Seeweg (Marine)', colony: 'Kolonie (Marine)', orbit: 'Orbit' };
+
+export function routesOf(view: GameView, id: string): { id: string; kind: string }[] {
+  const out = new Map<string, string>();
+  const rts = routesFor(view.mapId);
+  for (const n of nbrs(view as unknown as GameState, id)) {
+    const r = rts.find((x) => (x.a === id && x.b === n) || (x.b === id && x.a === n));
+    out.set(n, r ? r.kind : 'border');
+  }
+  const t = view.territories[id];
+  if (t.station && TDEF[id].type === 'land') for (const l of LANDING_SITES) out.set(l, 'orbit');
+  if (TDEF[id].landingSite) for (const [k, x] of Object.entries(view.territories)) if (x.station && x.owner && x.owner === t.owner) out.set(k, 'orbit');
+  return [...out].map(([n, kind]) => ({ id: n, kind }));
+}
+
 function TerritoryInfo({ id, view, players, compact }: { id: string; view: GameView; players: Record<string, Player>; compact?: boolean }) {
   const t = view.territories[id];
   const def = TDEF[id];
+  const reg = RDEF[def.region];
   const owner = t.owner ? players[t.owner] : null;
+  const members = REGION_MEMBERS[def.region].filter((x) => !view.territories[x].devastated);
+  const mine = view.me ? members.filter((x) => view.territories[x].owner === view.me) : [];
+  const missing = members.filter((x) => view.territories[x].owner !== view.me);
+  const holders = new Map<string, number>();
+  for (const x of members) { const o = view.territories[x].owner; if (o) holders.set(o, (holders.get(o) ?? 0) + 1); }
+  const routes = routesOf(view, id);
+  const byKind = new Map<string, string[]>();
+  for (const r of routes) byKind.set(r.kind, [...(byKind.get(r.kind) ?? []), TDEF[r.id].name]);
   return (
     <div class={`tinfo ${compact ? 'compact' : ''}`}>
-      <b>{def.name}</b> <span class="hint">{def.type === 'land' ? 'Land' : def.type === 'water' ? 'Wasser' : 'Mond'} · {RDEF[def.region].name} (+{RDEF[def.region].bonus}){def.landingSite ? ' · Landeplatz' : ''}</span>
+      <b>{def.name}</b> <span class="hint">{def.type === 'land' ? 'Land' : def.type === 'water' ? 'Unterwasserfeld' : 'Mond'}{def.landingSite ? ' · Landeplatz' : ''}</span>
       <div>
         {t.devastated ? 'Verwüstet' : owner ? <><Dot color={owner.color} /> {owner.name}: {t.mods} MODs{t.commanders.length ? ` · ${t.commanders.map((c) => COMMANDER_NAMES[c]).join(', ')}` : ''}{t.station ? ' · Station' : ''}</> : 'Unbesetzt'}
       </div>
+      <div class="regline">
+        <span class="regname">{reg.name} +{reg.bonus}</span>
+        <span class="regbar">{members.map((x) => <i key={x} title={TDEF[x].name} style={{ background: view.territories[x].owner ? players[view.territories[x].owner!]?.color : '#3b4658' }} />)}</span>
+        {view.me && <span class="hint">{mine.length === members.length ? 'vollständig deins ✓' : `du ${mine.length}/${members.length}`}</span>}
+      </div>
+      {!compact && view.me && missing.length > 0 && missing.length < members.length && <div class="hint">Es fehlen: {missing.map((x) => TDEF[x].name).join(', ')}</div>}
+      {!compact && <div class="hint">Anteile: {[...holders].map(([o, n]) => `${players[o]?.name} ${n}`).join(' · ') || '–'}</div>}
+      {!compact && (
+        <div class="routes">
+          {[...byKind].map(([k, names]) => <div key={k}><span class={`rk rk-${k}`}>{ROUTE_KIND[k]}</span> {names.join(', ')}</div>)}
+        </div>
+      )}
     </div>
   );
 }
@@ -686,25 +753,27 @@ function BuyBox({ view, me, s, busy, onBuy, onSkip }: { view: GameView; me: Play
   );
 }
 
-function OccupyBox({ from, to, view, busy, onGo, onCancel }: { from: string; to: string; view: GameView; busy: boolean; onGo: (m: UnitMove) => void; onCancel: () => void }) {
+function OccupyBox({ from, to, view, busy, onGo, onCancel, title }: { from: string; to: string; view: GameView; busy: boolean; onGo: (m: UnitMove) => void; onCancel: () => void; title?: string }) {
   const t = view.territories[from];
   const [move, setMove] = useState<UnitMove>({ mods: Math.min(t.mods, Math.max(1, Math.floor(units(t) / 2))), commanders: [] });
   return (
     <div class="box">
-      <div class="title">{TDEF[from].name} → {TDEF[to].name} (unbesetzt)</div>
-      <div class="hint">Besetzen ohne Würfeln – zählt als Invasion.</div>
+      <div class="title">{title ?? `${TDEF[from].name} → ${TDEF[to].name} (unbesetzt)`}</div>
+      <div class="hint">{title ? `${TDEF[from].name} → ${TDEF[to].name}: keine Verluste, kein Eroberungsbonus; mindestens 1 Einheit bleibt.` : 'Besetzen ohne Würfeln – zählt als Invasion.'}</div>
       <UnitPicker t={t} value={move} onChange={setMove} min={1} />
-      <div class="btnrow"><Btn kind="ghost" onClick={onCancel}>Zurück</Btn><Btn kind="ok" disabled={busy || move.mods + move.commanders.length < 1} onClick={() => onGo(move)}>Besetzen</Btn></div>
+      <div class="btnrow"><Btn kind="ghost" onClick={onCancel}>Zurück</Btn><Btn kind="ok" disabled={busy || move.mods + move.commanders.length < 1} onClick={() => onGo(move)}>{title ? 'Verlegen' : 'Besetzen'}</Btn></div>
     </div>
   );
 }
 
-function FortifyBox({ from, to, view, busy, onGo, onCancel }: { from: string; to: string; view: GameView; busy: boolean; onGo: (m: UnitMove) => void; onCancel: () => void }) {
+function FortifyBox({ from, to, view, busy, onGo, onCancel, onReverse }: { from: string; to: string; view: GameView; busy: boolean; onGo: (m: UnitMove) => void; onCancel: () => void; onReverse?: () => void }) {
   const t = view.territories[from];
   const [move, setMove] = useState<UnitMove>({ mods: Math.max(0, t.mods - (t.commanders.length ? 0 : 1)), commanders: [] });
   return (
     <div class="box">
       <div class="title">Verlegen: {TDEF[from].name} → {TDEF[to].name}</div>
+      {TDEF[from].board !== TDEF[to].board && <div class="hint ok">Über eigene Station ⇄ eigenen Landeplatz – kein Raum-Kommandant nötig.</div>}
+      {onReverse && <Btn small kind="ghost" onClick={onReverse}>⇄ Richtung umkehren</Btn>}
       <UnitPicker t={t} value={move} onChange={setMove} min={1} />
       <div class="btnrow"><Btn kind="ghost" onClick={onCancel}>Zurück</Btn><Btn kind="ok" disabled={busy || move.mods + move.commanders.length < 1} onClick={() => onGo(move)}>Verlegen</Btn></div>
     </div>
@@ -727,41 +796,65 @@ function DiceRow({ battle }: { battle?: { data?: Record<string, unknown> } }) {
 
 function AttackBox({ view, s, me, players, busy, battle, onAttack, onRetreat, onCard }: {
   view: GameView; s: GameState; me: Player; players: Record<string, Player>; busy: boolean; battle?: { data?: Record<string, unknown> };
-  onAttack: (dice: number, blitz: boolean) => void; onRetreat: () => void; onCard: (c: string) => void;
+  onAttack: (dice: number, blitz: boolean, d8: CommanderType[]) => void; onRetreat: () => void; onCard: (c: string) => void;
 }) {
   const i = view.invasion!;
   const max = maxAttackDice(s, i);
   const [dice, setDice] = useState(max);
+  const qualifying = qualifyingAttackCommanders(s, i);
+  const [useD8, setUseD8] = useState<CommanderType[]>(qualifying);
   const a = Math.min(dice, max);
+  const chosen = useD8.filter((c) => qualifying.includes(c)).slice(0, a);
   const from = view.territories[i.from];
   const to = view.territories[i.to];
-  const defDice = Math.min(2, units(to));
-  const plan = a > 0 ? planDice(s, i, a, defDice) : null;
+  const defender = to.owner ? players[to.owner] : null;
+  const defDice = defender && defender.settings.defendMax === false ? 1 : Math.min(2, units(to));
+  const plan = a > 0 ? planDice(s, i, a, defDice, chosen) : null;
   const a8 = plan?.attSides.filter((x) => x === 8).length ?? 0;
   const d8 = plan?.defSides.filter((x) => x === 8).length ?? 0;
   const pBlitz = conquestProbability(units(from), units(to), a8, d8, 2);
+  const blocker = attackBlocker(s, i);
   const angCards = me.hand.filter((c) => cardStatus(view, s, me, c).ok && CARD[cardType(c)].timing === 'ANG');
+  const stop = battle?.data?.stopReason as string | undefined;
   return (
     <div class="box">
-      <div class="title">{TDEF[i.from].name} ({units(from)}) → {TDEF[i.to].name} ({units(to)}, {players[to.owner ?? '']?.name ?? '–'})</div>
+      <div class="title">{TDEF[i.from].name} ({units(from)}) → {TDEF[i.to].name} ({units(to)}, {defender?.name ?? '–'})</div>
       {i.mods.played.length > 0 && <div class="hint warn">Gespielte Karten: {i.mods.played.map((id) => CARD[id].name).join(', ')}</div>}
       <DiceRow battle={battle} />
-      {plan && (
-        <div class="dicepreview">
-          {plan.attSides.map((sd, k) => <span key={k} class={`die att d${sd}`}>W{sd}</span>)}
-          <span class="vs">vs.</span>
-          {plan.defSides.map((sd, k) => <span key={k} class={`die def d${sd}`}>W{sd}</span>)}
-        </div>
+      {(blocker || stop) && <div class="box warn small">Angriff gestoppt: {blocker ?? stop}. Du kannst die Invasion abbrechen; Verteidigung und Truppenbewegung bleiben möglich.</div>}
+      {!blocker && plan && (
+        <>
+          <div class="dicepreview">
+            {plan.attSides.map((sd, k) => <span key={k} class={`die att d${sd}`}>W{sd}</span>)}
+            <span class="vs">vs.</span>
+            {plan.defSides.map((sd, k) => <span key={k} class={`die def d${sd}`}>W{sd}</span>)}
+          </div>
+          <div class="row">Würfel: <Stepper value={a} min={1} max={Math.max(1, max)} onChange={setDice} /></div>
+          {qualifying.length > 0 && (
+            <div class="row chips">
+              <span class="hint">W8 durch:</span>
+              {qualifying.map((c) => {
+                const on = useD8.includes(c);
+                return (
+                  <button type="button" key={c} class={`chip ${on && chosen.includes(c) ? 'on' : ''}`} data-d8={c}
+                    onClick={() => setUseD8(on ? useD8.filter((x) => x !== c) : [...useD8, c])}>
+                    {COMMANDER_NAMES[c]} {on && chosen.includes(c) ? 'W8' : 'W6'}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {qualifying.length > 0 && <div class="hint">Kommandanten, die im letzten Wurf W8 würfeln, müssen nach einer Eroberung mit einrücken.</div>}
+          <div class="hint ok">Schätzung: P(Eroberung per Blitz bis 2 Einheiten) ≈ {(pBlitz * 100).toFixed(0)} % (ohne spätere Karten/Reaktionen)</div>
+        </>
       )}
-      <div class="row">Würfel: <Stepper value={a} min={1} max={Math.max(1, max)} onChange={setDice} /></div>
-      <div class="hint ok">P(Eroberung per Blitz, Stopp bei 2 Einheiten) ≈ {(pBlitz * 100).toFixed(0)} %</div>
-      {i.rolls === 0 && angCards.length > 0 && (
+      {i.rolls === 0 && !blocker && angCards.length > 0 && (
         <div class="btnrow wrap">{angCards.map((c) => <Btn key={c} small kind="warn" onClick={() => onCard(c)}>{CARD[cardType(c)].name} ({CARD[cardType(c)].powerUp} E)</Btn>)}</div>
       )}
       <div class="btnrow">
-        <Btn kind="danger" disabled={busy || max < 1} onClick={() => onAttack(a, false)}>Würfeln</Btn>
-        <Btn kind="primary" disabled={busy || max < 1} onClick={() => onAttack(max, true)}>Blitz</Btn>
-        <Btn kind="ghost" disabled={busy || (i.rolls === 0 && max > 0)} onClick={onRetreat}>Abbrechen</Btn>
+        <Btn kind="danger" disabled={busy || max < 1 || Boolean(blocker)} onClick={() => onAttack(a, false, chosen)}>Würfeln</Btn>
+        <Btn kind="primary" disabled={busy || max < 1 || Boolean(blocker)} onClick={() => onAttack(a, true, chosen)}>Blitz</Btn>
+        <Btn kind="ghost" disabled={busy || (i.rolls === 0 && max > 0 && !blocker)} onClick={onRetreat}>Abbrechen</Btn>
       </div>
     </div>
   );

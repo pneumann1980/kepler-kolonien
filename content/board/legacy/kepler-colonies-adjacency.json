@@ -1,0 +1,528 @@
+{
+ "schema": "adjacency/v1",
+ "mapIds": [
+  "kepler-colonies",
+  "kepler-colonies-2"
+ ],
+ "note": "Gebietsgraph der Kepler-Fantasiekarte (Stand vor der Erdkarte); gilt für Partien mit diesen Kartenkennungen. kepler-colonies-2 ergänzt BOR-3<->VEL-5.",
+ "adjacent": {
+  "BOR-1": [
+   "BOR-2",
+   "BOR-4",
+   "BOR-5",
+   "NOR-1",
+   "PEL-2"
+  ],
+  "BOR-2": [
+   "BOR-1",
+   "BOR-5",
+   "BOR-6",
+   "BOR-9",
+   "NOR-1"
+  ],
+  "BOR-3": [
+   "BOR-4",
+   "BOR-7",
+   "PEL-2",
+   "PEL-3"
+  ],
+  "BOR-4": [
+   "BOR-1",
+   "BOR-3",
+   "BOR-5",
+   "BOR-7",
+   "BOR-8",
+   "PEL-2"
+  ],
+  "BOR-5": [
+   "BOR-1",
+   "BOR-2",
+   "BOR-4",
+   "BOR-8",
+   "BOR-9"
+  ],
+  "BOR-6": [
+   "ABY-2",
+   "BOR-2",
+   "BOR-9",
+   "KAS-2",
+   "KAS-3",
+   "NOR-1",
+   "NOR-2"
+  ],
+  "BOR-7": [
+   "BOR-3",
+   "BOR-4",
+   "BOR-8",
+   "PEL-3"
+  ],
+  "BOR-8": [
+   "ABY-1",
+   "BOR-4",
+   "BOR-5",
+   "BOR-7",
+   "BOR-9",
+   "MER-3",
+   "PEL-3"
+  ],
+  "BOR-9": [
+   "ABY-1",
+   "ABY-2",
+   "BOR-2",
+   "BOR-5",
+   "BOR-6",
+   "BOR-8"
+  ],
+  "VEL-1": [
+   "NOR-1",
+   "NOR-2",
+   "VEL-2",
+   "VEL-4",
+   "VEL-6"
+  ],
+  "VEL-2": [
+   "NOR-1",
+   "VEL-1",
+   "VEL-3",
+   "VEL-4"
+  ],
+  "VEL-3": [
+   "NOR-1",
+   "NOR-3",
+   "VEL-2",
+   "VEL-4",
+   "VEL-5",
+   "VEL-7"
+  ],
+  "VEL-4": [
+   "VEL-1",
+   "VEL-2",
+   "VEL-3",
+   "VEL-6",
+   "VEL-7"
+  ],
+  "VEL-5": [
+   "NOR-3",
+   "VEL-3",
+   "VEL-7"
+  ],
+  "VEL-6": [
+   "KAS-5",
+   "KOR-2",
+   "NOR-2",
+   "VEL-1",
+   "VEL-4",
+   "VEL-7"
+  ],
+  "VEL-7": [
+   "INS-1",
+   "KOR-2",
+   "NOR-3",
+   "VEL-3",
+   "VEL-4",
+   "VEL-5",
+   "VEL-6"
+  ],
+  "KAS-1": [
+   "KAS-4",
+   "KAS-5",
+   "KAS-7",
+   "NOR-2"
+  ],
+  "KAS-2": [
+   "ABY-2",
+   "BOR-6",
+   "KAS-3",
+   "KAS-6",
+   "KAS-9"
+  ],
+  "KAS-3": [
+   "BOR-6",
+   "KAS-2",
+   "KAS-4",
+   "KAS-6",
+   "NOR-2"
+  ],
+  "KAS-4": [
+   "KAS-1",
+   "KAS-3",
+   "KAS-6",
+   "KAS-7",
+   "NOR-2"
+  ],
+  "KAS-5": [
+   "KAS-1",
+   "KAS-7",
+   "KAS-8",
+   "KOR-1",
+   "KOR-2",
+   "NOR-2",
+   "VEL-6"
+  ],
+  "KAS-6": [
+   "KAS-10",
+   "KAS-2",
+   "KAS-3",
+   "KAS-4",
+   "KAS-7",
+   "KAS-9"
+  ],
+  "KAS-7": [
+   "KAS-1",
+   "KAS-10",
+   "KAS-4",
+   "KAS-5",
+   "KAS-6",
+   "KAS-8"
+  ],
+  "KAS-8": [
+   "KAS-10",
+   "KAS-5",
+   "KAS-7",
+   "KOR-1"
+  ],
+  "KAS-9": [
+   "ABY-2",
+   "ABY-3",
+   "KAS-10",
+   "KAS-2",
+   "KAS-6"
+  ],
+  "KAS-10": [
+   "ABY-3",
+   "KAS-6",
+   "KAS-7",
+   "KAS-8",
+   "KAS-9",
+   "KOR-1",
+   "SAH-1"
+  ],
+  "MER-1": [
+   "MER-2",
+   "MER-5",
+   "PEL-1",
+   "PEL-3"
+  ],
+  "MER-2": [
+   "MER-1",
+   "MER-3",
+   "MER-4",
+   "MER-5",
+   "PEL-3"
+  ],
+  "MER-3": [
+   "ABY-1",
+   "ABY-3",
+   "BOR-8",
+   "MER-2",
+   "MER-4",
+   "PEL-3"
+  ],
+  "MER-4": [
+   "ABY-3",
+   "MER-2",
+   "MER-3",
+   "MER-5",
+   "MER-6",
+   "SUD-1"
+  ],
+  "MER-5": [
+   "MER-1",
+   "MER-2",
+   "MER-4",
+   "MER-6",
+   "PEL-1",
+   "SUD-1"
+  ],
+  "MER-6": [
+   "MER-4",
+   "MER-5",
+   "SUD-1"
+  ],
+  "SAH-1": [
+   "ABY-3",
+   "KAS-10",
+   "KOR-1",
+   "SAH-3",
+   "SAH-4",
+   "SAH-5"
+  ],
+  "SAH-2": [
+   "ABY-3",
+   "SAH-3",
+   "SUD-1",
+   "SUD-2"
+  ],
+  "SAH-3": [
+   "ABY-3",
+   "SAH-1",
+   "SAH-2",
+   "SAH-4",
+   "SUD-2"
+  ],
+  "SAH-4": [
+   "SAH-1",
+   "SAH-3",
+   "SAH-5",
+   "SAH-6",
+   "SUD-2"
+  ],
+  "SAH-5": [
+   "KOR-1",
+   "SAH-1",
+   "SAH-4",
+   "SAH-6",
+   "SUD-2"
+  ],
+  "SAH-6": [
+   "SAH-4",
+   "SAH-5",
+   "SUD-2"
+  ],
+  "INS-1": [
+   "INS-2",
+   "INS-4",
+   "KOR-1",
+   "KOR-2",
+   "VEL-7"
+  ],
+  "INS-2": [
+   "INS-1",
+   "INS-3",
+   "INS-4",
+   "KOR-2"
+  ],
+  "INS-3": [
+   "INS-2",
+   "INS-4",
+   "KOR-2",
+   "SUD-2"
+  ],
+  "INS-4": [
+   "INS-1",
+   "INS-2",
+   "INS-3",
+   "KOR-1",
+   "SUD-2"
+  ],
+  "NOR-1": [
+   "BOR-1",
+   "BOR-2",
+   "BOR-6",
+   "NOR-2",
+   "NOR-3",
+   "PEL-2",
+   "VEL-1",
+   "VEL-2",
+   "VEL-3"
+  ],
+  "NOR-2": [
+   "BOR-6",
+   "KAS-1",
+   "KAS-3",
+   "KAS-4",
+   "KAS-5",
+   "NOR-1",
+   "VEL-1",
+   "VEL-6"
+  ],
+  "NOR-3": [
+   "KOR-2",
+   "NOR-1",
+   "PEL-2",
+   "PEL-3",
+   "VEL-3",
+   "VEL-5",
+   "VEL-7"
+  ],
+  "PEL-1": [
+   "KOR-2",
+   "MER-1",
+   "MER-5",
+   "PEL-3",
+   "SUD-1",
+   "SUD-2"
+  ],
+  "PEL-2": [
+   "BOR-1",
+   "BOR-3",
+   "BOR-4",
+   "NOR-1",
+   "NOR-3",
+   "PEL-3"
+  ],
+  "PEL-3": [
+   "ABY-1",
+   "BOR-3",
+   "BOR-7",
+   "BOR-8",
+   "KOR-2",
+   "MER-1",
+   "MER-2",
+   "MER-3",
+   "NOR-3",
+   "PEL-1",
+   "PEL-2"
+  ],
+  "ABY-1": [
+   "ABY-2",
+   "ABY-3",
+   "BOR-8",
+   "BOR-9",
+   "MER-3",
+   "PEL-3"
+  ],
+  "ABY-2": [
+   "ABY-1",
+   "ABY-3",
+   "BOR-6",
+   "BOR-9",
+   "KAS-2",
+   "KAS-9"
+  ],
+  "ABY-3": [
+   "ABY-1",
+   "ABY-2",
+   "KAS-10",
+   "KAS-9",
+   "MER-3",
+   "MER-4",
+   "SAH-1",
+   "SAH-2",
+   "SAH-3",
+   "SUD-1"
+  ],
+  "KOR-1": [
+   "INS-1",
+   "INS-4",
+   "KAS-10",
+   "KAS-5",
+   "KAS-8",
+   "KOR-2",
+   "SAH-1",
+   "SAH-5",
+   "SUD-2"
+  ],
+  "KOR-2": [
+   "INS-1",
+   "INS-2",
+   "INS-3",
+   "KAS-5",
+   "KOR-1",
+   "NOR-3",
+   "PEL-1",
+   "PEL-3",
+   "SUD-2",
+   "VEL-6",
+   "VEL-7"
+  ],
+  "SUD-1": [
+   "ABY-3",
+   "MER-4",
+   "MER-5",
+   "MER-6",
+   "PEL-1",
+   "SAH-2",
+   "SUD-2"
+  ],
+  "SUD-2": [
+   "INS-3",
+   "INS-4",
+   "KOR-1",
+   "KOR-2",
+   "PEL-1",
+   "SAH-2",
+   "SAH-3",
+   "SAH-4",
+   "SAH-5",
+   "SAH-6",
+   "SUD-1"
+  ],
+  "HOC-1": [
+   "HOC-2",
+   "HOC-3",
+   "HOC-4",
+   "HOC-6"
+  ],
+  "HOC-2": [
+   "HOC-1",
+   "HOC-3",
+   "HOC-6",
+   "POL-2"
+  ],
+  "HOC-3": [
+   "HOC-1",
+   "HOC-2",
+   "HOC-6"
+  ],
+  "HOC-4": [
+   "HOC-1",
+   "HOC-5",
+   "HOC-6"
+  ],
+  "HOC-5": [
+   "HOC-4",
+   "HOC-6",
+   "TEN-1",
+   "TEN-2"
+  ],
+  "HOC-6": [
+   "HOC-1",
+   "HOC-2",
+   "HOC-3",
+   "HOC-4",
+   "HOC-5",
+   "POL-2",
+   "POL-3",
+   "TEN-2",
+   "TEN-4"
+  ],
+  "TEN-1": [
+   "HOC-5",
+   "TEN-2",
+   "TEN-3",
+   "TEN-4"
+  ],
+  "TEN-2": [
+   "HOC-5",
+   "HOC-6",
+   "TEN-1",
+   "TEN-4"
+  ],
+  "TEN-3": [
+   "POL-3",
+   "TEN-1",
+   "TEN-4"
+  ],
+  "TEN-4": [
+   "HOC-6",
+   "POL-3",
+   "TEN-1",
+   "TEN-2",
+   "TEN-3"
+  ],
+  "POL-1": [
+   "POL-2",
+   "POL-3",
+   "POL-4"
+  ],
+  "POL-2": [
+   "HOC-2",
+   "HOC-6",
+   "POL-1",
+   "POL-3"
+  ],
+  "POL-3": [
+   "HOC-6",
+   "POL-1",
+   "POL-2",
+   "POL-4",
+   "TEN-3",
+   "TEN-4"
+  ],
+  "POL-4": [
+   "POL-1",
+   "POL-3"
+  ]
+ }
+}

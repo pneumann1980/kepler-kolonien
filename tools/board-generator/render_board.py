@@ -51,7 +51,7 @@ REGION_COLORS = {
 }
 
 STRAIT = 13          # halbe Breite der Meerengen
-FIELD_R = 33         # Umkreisradius eines Wasserfeldes
+FIELD_R = 35         # Radius eines runden Wasserfeldes (Stützpunkt)
 FIELD_GAP = 18       # Abstand zwischen Feldern einer Kolonie (Felder berühren sich nicht)
 LAND_CLEAR = 26      # Mindestabstand Kolonie <-> Küste
 COLONY_CLEAR = 60    # Mindestabstand zwischen Kolonien
@@ -138,7 +138,7 @@ members = {c: sorted(i for i, t in T.items() if t['region'] == c) for c in colon
 def layout(cid):
     """Relative Feldpositionen: Kette (Mittelglied = Feld mit zwei Nachbarn) oder Dreieck."""
     ms = members[cid]
-    step = 2 * FIELD_R * math.cos(math.pi / 6) + FIELD_GAP
+    step = 2 * FIELD_R + FIELD_GAP
     inner = {m: [n for n in T[m]['adjacent'] if n in ms] for m in ms}
     if len(ms) == 2:
         return {ms[0]: (-step / 2, 0), ms[1]: (step / 2, 0)}, step / 2 + FIELD_R
@@ -198,11 +198,11 @@ for cid in order:
         field_center[m] = (cx + q[0], cy + q[1])
 
 
-def hexagon(c, r):
-    return Polygon([(c[0] + r * math.cos(math.radians(30 + 60 * k)), c[1] + r * math.sin(math.radians(30 + 60 * k))) for k in range(6)]).buffer(4, join_style=1).buffer(-4, join_style=1)
+def disc(c, r):
+    return Point(*c).buffer(r, resolution=12)
 
 
-water_geom = {m: hexagon(c, FIELD_R) for m, c in field_center.items()}
+water_geom = {m: disc(c, FIELD_R) for m, c in field_center.items()}
 for a in water_geom:
     for b in water_geom:
         if a < b:

@@ -158,6 +158,12 @@ route('GET', '/api/push/key', () => ({ publicKey: vapidPublicKey() }));
 route('POST', '/api/push/subscribe', (req, _r, _p, b) => { subscribe(requireUser(req).id, b as never); return { ok: true }; });
 route('POST', '/api/push/unsubscribe', (req, _r, _p, b) => { requireUser(req); unsubscribe(String(b.endpoint ?? '')); return { ok: true }; });
 
+// ---------------- Test-API (nur mit ENABLE_TEST_API=1, niemals produktiv aktivieren)
+if (process.env.ENABLE_TEST_API === '1') {
+  route('GET', '/api/test/games/:id/state', (req, _r, p) => { requireUser(req); return { state: games.testGetState(p[0]) }; });
+  route('POST', '/api/test/games/:id/state', (req, _r, p, b) => { requireUser(req); games.testSetState(p[0], b.state as never); return { ok: true }; });
+}
+
 // ---------------- Admin
 route('POST', '/api/admin/promote', (req, _r, _p, b) => {
   rateLimit(req, 'admin', 10);

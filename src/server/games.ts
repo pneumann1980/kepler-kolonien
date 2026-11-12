@@ -339,3 +339,16 @@ export function resumeAll(): void {
 export function setAway(user: User, id: string) {
   return command(user, id, { t: 'Resign' });
 }
+
+// ------------------------------------------------------------------ Nur für Tests (ENABLE_TEST_API=1)
+export function testGetState(id: string): GameState {
+  return stateOf(id);
+}
+export function testSetState(id: string, state: GameState): void {
+  if (!state || typeof state !== 'object' || !state.territories || !state.players) throw new HttpError('Ungültiger Zustand');
+  const before = stateOf(id);
+  state.version = before.version + 1;
+  cache.set(id, state);
+  db.prepare('UPDATE games SET state_json = ?, version = ?, updated_at = ? WHERE id = ?').run(JSON.stringify(state), state.version, Date.now(), id);
+  afterChange(id, pendingActors(before), state);
+}
