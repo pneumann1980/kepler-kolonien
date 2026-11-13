@@ -48,6 +48,8 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
   const [toast, setToast] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('map');
   const [panelOpen, setPanelOpen] = useState(() => window.innerWidth >= 700);
+  const [menuId, setMenuId] = useState<string | null>(null);          // Gebiet mit geöffnetem Aktionsmenü
+  const [floatMin, setFloatMin] = useState<boolean | null>(null);      // schwebende Aktionsleiste (bei eingeklappter Seitenleiste); null = automatisch
   const [noRotate, setNoRotate] = useState(() => { try { return sessionStorage.getItem('kk-norotate') === '1'; } catch { return false; } });
   const [board, setBoard] = useState<'planet' | 'moon'>('planet');
   const [sel, setSel] = useState<string | null>(null);
@@ -79,6 +81,8 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
       lastPhaseKey.current = key;
       setPlacements({});
       setPending(null);
+      setMenuId(null);
+      setFloatMin(null);
       if (!view.invasion) { setTarget(null); }
       if (view.phase !== 'turn' || (view.turn?.step !== 'main' && view.turn?.step !== 'fortify')) setSel(null);
       if (view.phase !== 'quickSetup' && view.phase !== 'setupUnits') setQuick({ stage: 'mods' });
@@ -132,6 +136,7 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
   const send = async (cmd: Command, okMsg?: string) => {
     if (busy) return;
     setBusy(true);
+    setMenuId(null);
     try {
       await sendCommand(gameId, cmd, view.version);
       if (okMsg) setToast(okMsg);
@@ -197,7 +202,7 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
     return set;
   })();
 
-  const onTap = (id: string) => {
+  const onTapCore = (id: string) => {
     if (!myId) return;
     const t = view.territories[id];
     if (pending?.kind === 'hire' || pending?.kind === 'station') {
@@ -245,7 +250,94 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
     setTarget(null);
   };
 
+  const onTap = (id: string) => {
+    onTapCore(id);
+    setMenuId(menuId === id ? null : id);     // erneutes Tippen schließt das Menü
+  };
+
   const otherBoardTargets = [...targets].some((id) => TDEF[id].board !== board);
+
+  // ---------------------------------------------------------------- Aktionsmenü am Gebiet (nur aktuell mögliche Aktionen)
+  type MenuAct = { key: string; icon: string; label: string; sub?: string; kind?: 'ok' | 'danger' | 'warn'; run: () => void };
+  const menuActs = (id: string): MenuAct[] => {
+    const acts: MenuAct[] = [];
+    if (!myId || !myAction || busy || pending || !meP) return acts;
+    const t = view.territories[id];
+    const def = TDEF[id];
+    const mine = t.owner === myId;
+    const left = placingTotal - placed;
+    const close = () => setMenuId(null);
+    if (placingTotal > 0) {
+      if (mine) {
+        if (left > 0) acts.push({ key: 'p1', icon: 'plus', label: '+1 MOD', kind: 'ok', run: () => setPlacements({ ...placements, [id]: (placements[id] ?? 0) + 1 }) });
+        if (left >= 5) acts.push({ key: 'p5', icon: 'plus', label: '+5 MODs', run: () => setPlacements({ ...placements, [id]: (placements[id] ?? 0) + 5 }) });
+        if (left > 1) acts.push({ key: 'pr', icon: 'units', label: `Alle übrigen (${left})`, run: () => setPlacements({ ...placements, [id]: (placements[id] ?? 0) + left }) });
+        if ((placements[id] ?? 0) > 0) acts.push({ key: 'pm', icon: 'minus', label: '−1 MOD', run: () => setPlacements({ ...placements, [id]: placements[id] - 1 }) });
+      }
+      return acts;
+    }
+    if (view.phase === 'setupClaim') {
+      if (targets.has(id)) acts.push({ key: 'claim', icon: 'territory', label: 'Besetzen', kind: 'ok', run: () => send({ t: 'SetupClaim', territory: id }) });
+      return acts;
+    }
+    if (!myTurn || inv || !turn) return acts;
+    if (turn.step === 'hire' && mine) {
+      for (const c of COMMANDER_TYPES) {
+        if (!commanderLocation(s, myId, c) && meP.energy >= COSTS.commander) {
+          acts.push({ key: `h${c}`, icon: c, label: `${COMMANDER_NAMES[c]} anheuern`, sub: `${COSTS.commander} E`, run: () => send({ t: 'HireCommander', type: c, territory: id }, `${COMMANDER_NAMES[c]}-Kommandant angeheuert`) });
+        }
+      }
+      if (def.type === 'land' && !t.station && stationCount(s, myId) < MAX_STATIONS && meP.energy >= COSTS.station) {
+        acts.push({ key: 'st', icon: 'station', label: 'Station bauen', sub: `${COSTS.station} E`, run: () => send({ t: 'BuildStation', territory: id }, 'Station gebaut') });
+      }
+      return acts;
+    }
+    if (turn.step === 'main') {
+      const srcOk = sel && view.territories[sel]?.owner === myId;
+      if (mine && units(t) >= 2 && sel === id) {
+        if (targets.size > 0) acts.push({ key: 'atk', icon: 'sword', label: 'Angreifen', sub: `${targets.size} Ziele`, kind: 'danger', run: () => { close(); setToast('Markiertes Ziel antippen'); } });
+        if (t.station && def.type === 'land' && commanderInPlay(s, myId, 'SPACE') && LANDING_SITES.some((l) => targets.has(l))) {
+          acts.push({ key: 'moon', icon: 'SPACE', label: 'Zum Mond starten', kind: 'warn', run: () => { close(); setBoard('moon'); setToast('Landeplatz auf dem Mond antippen'); } });
+        }
+      } else if (srcOk && sel !== id && target === id && targets.has(id)) {
+        if (mine) acts.push({ key: 'mv', icon: 'units', label: 'Truppen hinüber …', sub: 'ohne Kampf', run: close });
+        else if (units(t) === 0) acts.push({ key: 'occ', icon: 'territory', label: 'Einmarschieren …', kind: 'ok', run: close });
+        else acts.push({ key: 'atk2', icon: 'sword', label: 'Angreifen', kind: 'danger', run: () => send({ t: 'Invade', from: sel!, to: id }) });
+      }
+      return acts;
+    }
+    if (turn.step === 'fortify') {
+      const srcOk = sel && view.territories[sel]?.owner === myId;
+      if (mine && units(t) >= 2 && sel === id && targets.size > 0) acts.push({ key: 'fort', icon: 'units', label: 'Truppen verlegen', sub: `${targets.size} Ziele`, run: () => { close(); setToast('Markiertes Zielgebiet antippen'); } });
+      else if (srcOk && sel !== id && target === id && targets.has(id)) acts.push({ key: 'fort2', icon: 'units', label: 'Truppen hierher …', run: () => { close(); setFloatMin(false); } });
+    }
+    return acts;
+  };
+  const menuForTerr = (() => {
+    if (!menuId || TDEF[menuId].board !== board) return null;
+    const acts = menuActs(menuId);
+    if (!acts.length) return null;
+    const t = view.territories[menuId];
+    const ow = t.owner ? players[t.owner] : null;
+    const node = (
+      <>
+        <div class="cm-head">
+          {ow ? <Dot color={ow.color} size={11} /> : <Ico name="territory" size={14} />}
+          <b>{tn(menuId)}</b>
+          <span class="cm-sub">{t.devastated ? 'kontaminiert' : ow ? `${units(t)} Einh.` : 'frei'}</span>
+          <button type="button" class="cm-x" aria-label="Menü schließen" onClick={() => setMenuId(null)}><Ico name="close" size={14} /></button>
+        </div>
+        <div class={`cm-acts ${acts.length >= 3 ? 'dense' : ''}`}>
+          {acts.map((a) => (
+            <button type="button" key={a.key} class={`cm-btn ${a.kind ?? ''}`} onClick={a.run} data-act={a.key}>
+              <Ico name={a.icon} size={17} /><span>{a.label}</span>{a.sub && <small>{a.sub}</small>}
+            </button>
+          ))}
+        </div>
+      </>
+    );
+    return { id: menuId, node };
+  })();
 
   // ---------------------------------------------------------------- Aktionsleiste
   const panel = renderPanel();
@@ -658,10 +750,25 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
               <button class={board === 'planet' ? 'on' : ''} onClick={() => setBoard('planet')}><Ico name="earth" size={16} /> {isLegacyMap(view.mapId) ? 'Planet' : 'Erde'}</button>
               <button class={board === 'moon' ? 'on' : ''} onClick={() => setBoard('moon')}><Ico name="moon" size={16} /> Mond{otherBoardTargets && board === 'planet' ? ' •' : ''}</button>
             </div>
-            <Board view={view} board={board} selected={target ?? sel} focus={target ?? sel} targets={targets} overlay={overlay} flash={flash} onTap={onTap} />
+            <Board view={view} board={board} selected={target ?? sel} focus={target ?? sel} targets={targets} overlay={overlay} flash={flash} onTap={onTap} onTapEmpty={() => setMenuId(null)} menu={menuForTerr} />
             <HandTray view={view} s={s} me={meP} onPlay={startCard} />
             {sel && !inv && TDEF[target ?? sel].board === board && <div class="selinfo"><TerritoryInfo id={target ?? sel} view={view} players={players} compact /></div>}
           </section>
+          {!panelOpen && tab === 'map' && (() => {
+            // Automatik: nur aufklappen, wenn eine Eingabe nötig ist (Würfeln, Bestätigen, Auswahl …); sonst bleibt die Karte frei
+            const needsPanel = Boolean(inv) || Boolean(cardDef) || placingTotal > 0 || (myAction && view.phase !== 'turn')
+              || (myAction && turn && (turn.bonusCardPending || ['hire', 'buy', 'end', 'deploy'].includes(turn.step)))
+              || (myTurn && turn && (turn.step === 'main' || turn.step === 'fortify') && Boolean(sel) && target !== null && targets.has(target));
+            const closed = floatMin ?? !needsPanel;
+            return (
+              <div class={`floatpanel ${closed ? 'min' : ''}`}>
+                <button type="button" class="fp-head" onClick={() => setFloatMin(!closed)} aria-label={closed ? 'Aktionen einblenden' : 'Aktionen ausblenden'}>
+                  <Ico name="sword" size={16} /><span>{myAction ? 'Aktion' : 'Status'}</span><span class="fp-status">{statusLine}</span><Ico name={closed ? 'chevronUp' : 'chevronDown'} size={14} />
+                </button>
+                {!closed && <div class="fp-body panel">{panel}</div>}
+              </div>
+            );
+          })()}
         </div>
         {panelOpen && (
           <section class="side">
@@ -737,7 +844,7 @@ function TerritoryInfo({ id, view, players, compact }: { id: string; view: GameV
     <div class={`tinfo ${compact ? 'compact' : ''}`}>
       <b>{tn(id)}</b> <span class="hint">{def.type === 'land' ? 'Land' : def.type === 'water' ? 'Unterwasserfeld' : 'Mond'}{def.landingSite ? ' · Landeplatz' : ''}</span>
       <div>
-        {t.devastated ? 'Verwüstet' : owner ? <><Dot color={owner.color} /> {owner.name}: {t.mods} MODs{t.commanders.map((c) => <CmdBadge key={c} type={c} size={20} title={COMMANDER_NAMES[c]} />)}{t.station && <span class="cmdbadge stn" title="Station"><Ico name="station" size={13} /></span>}</> : 'Unbesetzt'}
+        {t.devastated ? <><Ico name="atom" size={15} /> Kontaminiert – unpassierbar</> : owner ? <><Dot color={owner.color} /> {owner.name}: {t.mods} MODs{t.commanders.map((c) => <CmdBadge key={c} type={c} size={20} title={COMMANDER_NAMES[c]} />)}{t.station && <span class="cmdbadge stn" title="Station"><Ico name="station" size={13} /></span>}</> : 'Unbesetzt'}
       </div>
       <div class="regline">
         <span class="regname">{rn(reg.id)} +{reg.bonus}</span>

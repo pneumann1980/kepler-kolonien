@@ -2,6 +2,22 @@
 
 Stand: 2026-11-12. Grundlage ist [`KONZEPT.md`](KONZEPT.md) v1.3. Dieses Dokument trennt ehrlich, was fertig und getestet ist, was vereinfacht umgesetzt wurde und was noch fehlt.
 
+## 000. Aktionsmenü am Gebiet und Atom-Symbol (2026-11-13)
+
+| Anliegen | Umsetzung |
+|---|---|
+| Aktionen auch mit eingeklappter Seitenleiste | Bei eingeklappter Seitenleiste erscheint die Aktionsleiste als **schwebende Karte** über der Karte. Sie klappt automatisch auf, wenn eine Eingabe nötig ist (Würfeln, Bestätigen, Verteilen, Anheuern, Kartenkauf, Zielauswahl), sonst bleibt sie als schmale Zeile mit dem Status eingeklappt. Ein Tipp auf die Kopfzeile klappt sie auf bzw. zu |
+| Optionen beim Antippen eines Gebiets | Ein kleines **Aktionsmenü** öffnet sich direkt am Gebiet. Es zeigt nur, was in diesem Moment möglich ist, und rutscht bei Platzmangel neben das Gebiet. Erneutes Tippen, Tippen auf freie Fläche oder ✕ schließt es |
+| Was das Menü anbietet | **Besetzen** (freies Gebiet in der Platzwahl) · **+1 / +5 / Alle übrigen / −1 MOD** beim Einsetzen (Aufrüsten) · **Kommandant anheuern** (nur Typen, die noch nicht im Spiel sind und die du bezahlen kannst) und **Station bauen** · **Angreifen** (eigenes Gebiet mit mindestens 2 Einheiten, wenn es Ziele gibt) · **Zum Mond starten** (nur an Stationsgebieten mit Raum-Kommandant) · am Ziel **Angreifen**, **Einmarschieren …** oder **Truppen hinüber …** · in der Truppenbewegung **Truppen verlegen** |
+| Atom-Symbol | Das Atom steht jetzt auf **kontaminierten Gebieten** (gelb-schwarz schraffiert, unpassierbar, vorher „verwüstet“ mit ✕). Der Text im Spiel heißt durchgehend „kontaminiert“. Der Nuklear-Kommandant hat dafür ein eigenes Symbol (Sprengkopf), damit beides nicht verwechselt wird. Die Legende (ℹ) erklärt beide |
+| Außerdem | Der Hinweis-Toast sitzt jetzt oben und fängt keine Taps mehr ab (er verdeckte zuvor Gebiete in der Kartenmitte) |
+
+Bilder: [Menü am Zielgebiet](assets/screenshots/vergleich/nachher-menue-ziel.jpg) · [Aufrüsten: Anheuern und Station](assets/screenshots/vergleich/nachher-menue-aufruesten.jpg) · [schwebende Aktionsleiste beim Würfeln](assets/screenshots/vergleich/nachher-schwebende-leiste.jpg) · [Atom auf kontaminierten Gebieten](assets/screenshots/vergleich/nachher-kontaminiert-atom.jpg)
+
+Getestet in `tests/e2e/context-menu.cjs` (iPhone 13 quer, Seitenleiste eingeklappt): Atom auf kontaminierten Gebieten, Angriff über das Menü bis zum Würfeln, Mondlandung nur an der Station, Anheuern und Bezahlen, Einsetzen mit „Alle übrigen“ und Bestätigen in der schwebenden Leiste.
+
+**Offen:** Kartenspielen mit Zielwahl und die Handkarten-Reaktionen laufen weiter über Handleiste und Aktionsleiste (nicht über das Gebietsmenü). Auf sehr kleinen Displays scrollt das Menü, wenn es mehr Einträge als Platz gibt.
+
 ## 00. Spieloberfläche im Querformat (2026-11-12, zweites Update)
 
 ![Querformat Handy](assets/screenshots/vergleich/nachher-querformat-handy.jpg)
@@ -12,8 +28,8 @@ Stand: 2026-11-12. Grundlage ist [`KONZEPT.md`](KONZEPT.md) v1.3. Dieses Dokumen
 | Menü rechts, neue Icons | Menüleiste am rechten Rand: Aktion, Hand, Rang, Protokoll, Seitenleiste ein/aus, Vollbild. Alle Piktogramme sind ein eigener Icon-Satz (`src/client/ui/icons.tsx`), keine Emojis mehr |
 | Statistik oben | Kopfleiste: Spielname und Phase, Rangliste (Platz, Spieler, Punkte; wer am Zug ist, leuchtet), dazu eigene Werte: Energie, Handkarten, Gebiete, Einheiten, Stationen |
 | Rang-/Punkteliste sichtbar | Immer in der Kopfleiste. Antippen öffnet die Tabelle „Rangliste“ ([Bild](assets/screenshots/vergleich/nachher-rangliste-handy.jpg)) mit Gebieten, Regionsboni, Punkten, Energie, Einheiten, Stationen. Zwischenstand = Gebiete + Regionsboni; private Wertungskarten zählen erst am Ende |
-| Handkarten unten | Leiste unten im Spielfeld: ein Piktogramm je Deck (Land, Marine, Raum, Atom, Diplomat), Kosten, grüner Rand = jetzt spielbar. Antippen zeigt Text und „Spielen“; einklappbar |
-| Atom-Marker | Der Nuklear-Kommandant erscheint als Atom-Symbol (drei Bahnen mit Kern), auf der Karte, in der Hand, in Rangliste und Legende |
+| Handkarten unten | Leiste unten im Spielfeld: ein Piktogramm je Deck (Land, Marine, Raum, Nuklear, Diplomat), Kosten, grüner Rand = jetzt spielbar. Antippen zeigt Text und „Spielen“; einklappbar |
+| Atom-Marker | Das Atom-Symbol (drei Bahnen mit Kern) kennzeichnet kontaminierte Gebiete; der Nuklear-Kommandant ist ein Sprengkopf-Symbol (siehe Abschnitt 000) |
 | Mondbasen und Kommandanten erkennbar | Kommandanten sind runde Piktogramm-Marker unter der Einheitenzahl. Stationen tragen ein Satelliten-Symbol. Mond-Landeplätze sind ein gelber Landering mit Landeplatz-Symbol, gefüllt mit der Einheitenzahl des Besitzers. Die Legende (ℹ) erklärt alle Marker |
 | Zoom passt zum Bildschirm | Die Gesamtansicht passt sich der Fenstergröße an, auch nach dem Drehen. Doppeltippen zoomt, Pinch und Mausrad funktionieren. Auf iOS wird der Seitenzoom verhindert, damit nur die Karte zoomt. Bei hohen Flächen läuft das Meer oben und unten weiter. Auf kleinen Displays wird die Seitenleiste automatisch eingeklappt |
 | Logo | Neues Logo (Erde mit Orbit, Station und Mond) als SVG und PNG. Unraid zeigt es als Container-Symbol: Das Template verweist auf `deploy/unraid/icon.png`, zusätzlich trägt das Image das Label `net.unraid.docker.icon` |

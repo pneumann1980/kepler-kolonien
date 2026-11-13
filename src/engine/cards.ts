@@ -405,7 +405,7 @@ export const CARD_DEFS: CardDef[] = [
       const deck = s.territoryDecks.land;
       if (!deck.length) { log(s, { kind: 'text', msg: 'Erdlandung: Landkarten-Deck leer.', player: pid }); return; }
       const target = deck.shift()!;
-      if (s.territories[target].devastated) { log(s, { kind: 'text', msg: `Erdlandung: ${tname(target, s)} ist verwüstet – ohne Wirkung.`, player: pid }); return; }
+      if (s.territories[target].devastated) { log(s, { kind: 'text', msg: `Erdlandung: ${tname(target, s)} ist kontaminiert – ohne Wirkung.`, player: pid }); return; }
       addEffect(s, { kind: 'earthLanding', owner: pid, territory: target, expires: thisTurnEnd(pid) });
       log(s, { kind: 'text', msg: `Erdlandung: Ziel ist ${tname(target, s)}.`, player: pid, data: { territory: target } });
     },
@@ -434,7 +434,7 @@ export const CARD_DEFS: CardDef[] = [
   },
   {
     id: 'NUC-02', deck: 'NUCLEAR', name: 'Flächenbombardement', copies: 1, powerUp: 4, timing: 'VOR', target: 'enemyTerritory', value: 5,
-    text: 'Die Hälfte der Einheiten eines Gebiets wird vernichtet (aufgerundet). Danach W6: bei 1 wird das Gebiet verwüstet.',
+    text: 'Die Hälfte der Einheiten eines Gebiets wird vernichtet (aufgerundet). Danach W6: bei 1 wird das Gebiet kontaminiert.',
     targets: (s, pid) => enemyWithUnits(s, pid),
     apply: (s, pid, tg) => {
       const id = tg.territory!;
@@ -447,7 +447,7 @@ export const CARD_DEFS: CardDef[] = [
         t.mods = 0; t.commanders = []; t.station = false; t.owner = null; t.devastated = true;
         onOwnerChange(s, id);
         if (prev) checkElimination(s, prev);
-        msg += ' Das Gebiet ist verwüstet.';
+        msg += ' Das Gebiet ist kontaminiert.';
       }
       log(s, { kind: 'text', msg, player: pid, data: { territory: id } });
     },

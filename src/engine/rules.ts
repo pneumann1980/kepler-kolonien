@@ -51,7 +51,7 @@ export function createGame(opts: { players: NewPlayer[]; seedHex: string; commit
     s.territories[id].devastated = true;
     dev.push(id);
   }
-  log(s, { kind: 'setup', msg: `Verwüstet: ${dev.map((id) => tname(id, s)).join(', ')}.`, data: { territories: dev } });
+  log(s, { kind: 'setup', msg: `Kontaminiert: ${dev.map((id) => tname(id, s)).join(', ')}.`, data: { territories: dev } });
 
   // 2 Spieler: neutrale Armee (RH S. 8)
   if (n === 2) {
@@ -423,7 +423,7 @@ export function invadeError(s: GameState, pid: string, from: string, to: string)
   if (!a || !b) return 'Unbekanntes Gebiet';
   if (a.owner !== pid) return 'Startgebiet gehört dir nicht';
   if (units(a) < 2) return 'Im Startgebiet müssen mindestens 2 Einheiten stehen';
-  if (b.devastated) return 'Verwüstete Gebiete sind unpassierbar';
+  if (b.devastated) return 'Kontaminierte Gebiete sind unpassierbar';
   const ft = TDEF[from].type;
   const tt = TDEF[to].type;
   const landing = findEffects(s, 'earthLanding', (e) => e.owner === pid && e.territory === to);
@@ -655,7 +655,7 @@ function dispatch(s: GameState, pid: string, cmd: Command): void {
       if (s.phase !== 'setupClaim') fail('Keine Gebietswahl aktiv');
       if (setupCurrent(s) !== pid) fail('Du bist nicht an der Reihe');
       const t = terr(s, cmd.territory);
-      if (TDEF[cmd.territory].type !== 'land' || t.devastated || t.owner) fail('Nur freie, nicht verwüstete Landgebiete');
+      if (TDEF[cmd.territory].type !== 'land' || t.devastated || t.owner) fail('Nur freie, nicht kontaminierte Landgebiete');
       Object.assign(t, { owner: pid, mods: 1 });
       s.setup!.remaining[pid]--;
       s.setup!.index++;

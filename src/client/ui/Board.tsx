@@ -2,6 +2,7 @@
 // Regionsfarben + Beschriftungen, Routen, Trefferflächen, Landeplätze.
 // Darstellung je Kartenrevision: Rev. 3 = Erde & Mond (geometry/v3), Rev. 1/2 = Kepler-Fantasiekarte (geometry/v2).
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import type { ComponentChildren } from 'preact';
 import geometry from '../../../content/board/geometry.json' with { type: 'json' };
 import legacyGeometry from '../../../content/board/legacy/kepler-colonies-geometry.json' with { type: 'json' };
 import { TDEF, RDEF, REGION_MEMBERS, MAP_ID_V2, isLegacyMap, units } from '../../engine/index.ts';
@@ -48,6 +49,8 @@ export interface BoardProps {
   overlay?: Record<string, number>;
   flash?: string[];
   onTap?: (id: string) => void;
+  onTapEmpty?: () => void;       // Tippen auf freie Fläche (Menü schließen)
+  menu?: { id: string; node: ComponentChildren } | null;   // kleines Aktionsmenü am Gebiet
 }
 
 type Cam = { cx: number; cy: number; sc: number; fitted?: boolean };
@@ -60,7 +63,7 @@ function shade(hex: string, f: number): string {
 }
 const TINT: Record<string, number> = Object.fromEntries(Object.keys(TDEF).map((id, k) => [id, 1 + 0.06 * ((k * 7) % 5 - 2)]));
 
-export function Board({ view, board, selected, focus, targets, overlay, flash, onTap }: BoardProps) {
+export function Board({ view, board, selected, focus, targets, overlay, flash, onTap, onTapEmpty, menu }: BoardProps) {
   const GEO = geoFor(view.mapId);
   const earth = GEO.schema === 'geometry/v3';
   const dims = board === 'planet' ? GEO.boards.planet : GEO.boards.moon;
@@ -75,6 +78,15 @@ export function Board({ view, board, selected, focus, targets, overlay, flash, o
   memKeyRef.current = memKey;
   const setCam = (c: Cam) => { const f = { ...c, fitted: Math.abs(c.sc - fitScale) < fitScale * 0.02 }; camMemory[memKey] = f; setCamState(f); };
   const lastTap = useRef<{ t: number; x: number; y: number } | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [mdim, setMdim] = useState({ w: 210, h: 150 });
+  // Größe des Aktionsmenüs messen, damit es im sichtbaren Brett bleibt
+  useEffect(() => {
+    const el = menuRef.current;
+    if (!el) return;
+    const w = el.offsetWidth, h = el.offsetHeight;
+    if (Math.abs(w - mdim.w) > 1 || Math.abs(h - mdim.h) > 1) setMdim({ w, h });
+  });
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gesture = useRef<{ sx: number; sy: number; moved: boolean; cam0: Cam; dist?: number; mid?: { x: number; y: number } } | null>(null);
 
@@ -164,7 +176,7 @@ export function Board({ view, board, selected, focus, targets, overlay, flash, o
     if (wasSingle && g && !g.moved && onTap) {
       const el = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-tid]');
       const id = el?.getAttribute('data-tid');
-      if (id) onTap(id);
+      if (id) onTap(id); else onTapEmpty?.();
     }
     if (wasSingle && g && !g.moved) {
       // Doppeltippen: hineinzoomen bzw. zurück zur Gesamtansicht
@@ -303,7 +315,12 @@ export function Board({ view, board, selected, focus, targets, overlay, flash, o
       <g key={`b-${id}@${dx}`} data-tid={id} data-copy={dx} class="badge">
         <circle cx={x} cy={ly} r={r * 0.9} class="anchor" fill="#000" fill-opacity={0.001} />
         {showNames && <text x={nx} y={TDEF[id].landingSite ? ny - 2 : ly - r - px(4)} class="tname" font-size={px(10.5)} stroke-width={px(2.5)}>{tn(id)}</text>}
-        {t.devastated && <text x={x} y={ly + r * 0.4} class="devast" font-size={r * 1.2}>✕</text>}
+        {t.devastated && (
+          <g class="contam">
+            <circle cx={x} cy={ly} r={r * 1.12} fill="#14130a" fill-opacity={0.92} stroke="#facc15" stroke-width={Math.max(2, r * 0.16)} stroke-dasharray={`${r * 0.9} ${r * 0.45}`} />
+            <IcoG name="atom" x={x} y={ly} size={r * 1.55} color="#facc15" sw={2.1} />
+          </g>
+        )}
         {owner && (n > 0 || t.station) && (
           <>
             <path d={shapePath(seatOf(t.owner), x, ly, r + Math.max(1.5, r * 0.14))} fill="#050a14" fill-opacity={0.9} />
@@ -433,9 +450,9 @@ export function Board({ view, board, selected, focus, targets, overlay, flash, o
         onWheel={onWheel as never}
       >
         <defs>
-          <pattern id="hatch" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <rect width="12" height="12" fill="#2a2f3a" />
-            <line x1="0" y1="0" x2="0" y2="12" stroke="#6b7280" stroke-width="5" />
+          <pattern id="hatch" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="14" height="14" fill="#2b2a14" fill-opacity="0.92" />
+            <line x1="0" y1="0" x2="0" y2="14" stroke="#a8930f" stroke-width="5" stroke-opacity="0.75" />
           </pattern>
           <radialGradient id="seaGrad" cx="50%" cy="45%" r="75%"><stop offset="0" stop-color="#1d4f80" /><stop offset="1" stop-color="#0f2c4d" /></radialGradient>
           <linearGradient id="seaEarth" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0c3f52" /><stop offset="0.5" stop-color="#0a3445" /><stop offset="1" stop-color="#072634" /></linearGradient>
@@ -495,14 +512,43 @@ export function Board({ view, board, selected, focus, targets, overlay, flash, o
         {offsets.map((dx) => ids.map((id) => renderBadge(id, dx)))}
         {offsets.map((dx) => regions.map((rid) => renderRegionLabel(rid, dx)))}
       </svg>
+      {menu && (() => {
+        const g = GEO.territories[menu.id];
+        if (!g || TDEF[menu.id].board !== board) return null;
+        const [px0, py0] = TDEF[menu.id].landingSite && g.marker ? g.marker : g.label;
+        // sichtbare Umlaufkopie wählen
+        let best: number | null = null;
+        for (const dx of offsets) { const sx = ((px0 + dx - vx) / vw) * size.w; if (sx > -20 && sx < size.w + 20 && (best === null || Math.abs(sx - size.w / 2) < Math.abs(best - size.w / 2))) best = sx; }
+        if (best === null) return null;
+        const sy = ((py0 - vy) / vh) * size.h;
+        if (sy < -20 || sy > size.h + 20) return null;
+        const gap = Math.max(14, r / c.sc * 1.0 + 8);
+        const { w: mw, h: mh } = mdim;
+        let left = Math.max(6, Math.min(size.w - mw - 62, best - mw / 2));
+        const above = sy - gap - mh - 6 >= 0 || sy - gap > size.h - sy - gap;
+        let top = Math.max(6, Math.min(size.h - mh - 6, above ? sy - gap - mh : sy + gap));
+        let covers = sy > top - 10 && sy < top + mh + 10;        // Menü überdeckt das Gebiet selbst
+        if (covers) {                                            // dann seitlich neben das Gebiet setzen
+          const right = best + gap + 10 + mw <= size.w - 62, leftOk = best - gap - 10 - mw >= 6;
+          if (right || leftOk) { left = right ? best + gap + 10 : best - gap - 10 - mw; top = Math.max(6, Math.min(size.h - mh - 6, sy - mh / 2)); covers = true; }
+        }
+        return (
+          <div ref={menuRef} class={`ctxmenu ${above ? 'above' : 'below'} ${covers ? 'nocaret' : ''}`}
+            style={{ left: `${left}px`, top: `${top}px`, '--maxh': `${Math.max(90, size.h - 16)}px`, '--cx': `${Math.max(14, Math.min(mw - 14, best - left))}px` } as never}
+            onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+            {menu.node}
+          </div>
+        );
+      })()}
       {legend && (
         <div class="legend" onClick={() => setLegend(false)}>
           <div class="lg-title">Marker</div>
           <div class="lg-row"><svg width="34" height="24" viewBox="0 0 34 24"><circle cx="9" cy="12" r="8" fill="#e5484d" stroke="#fff" stroke-width="2" /><path d="M22,5l7,4v6l-7,4l-7-4V9z" fill="#30a46c" stroke="#fff" stroke-width="2" /></svg><span>Einheiten (Form = Spieler)</span></div>
           {(['LAND', 'NAVAL', 'SPACE', 'NUCLEAR', 'DIPLOMAT'] as const).map((c) => (
-            <div class="lg-row" key={c}><span class="lg-ico" style={{ borderColor: CMD_COLOR[c], color: CMD_COLOR[c] }}><Ico name={c} size={15} /></span><span>{{ LAND: 'Land-Kommandant', NAVAL: 'Marine-Kommandant', SPACE: 'Raum-Kommandant', NUCLEAR: 'Nuklear-Kommandant (Atom)', DIPLOMAT: 'Diplomat' }[c]}</span></div>
+            <div class="lg-row" key={c}><span class="lg-ico" style={{ borderColor: CMD_COLOR[c], color: CMD_COLOR[c] }}><Ico name={c} size={15} /></span><span>{{ LAND: 'Land-Kommandant', NAVAL: 'Marine-Kommandant', SPACE: 'Raum-Kommandant', NUCLEAR: 'Nuklear-Kommandant (Sprengkopf)', DIPLOMAT: 'Diplomat' }[c]}</span></div>
           ))}
           <div class="lg-row"><span class="lg-ico" style={{ borderColor: '#22d3ee', color: '#22d3ee' }}><Ico name="station" size={15} /></span><span>Station (Brücke zum Mond)</span></div>
+          <div class="lg-row"><span class="lg-ico" style={{ borderColor: '#facc15', color: '#facc15' }}><Ico name="atom" size={15} /></span><span>Kontaminiert (unpassierbar)</span></div>
           <div class="lg-row"><span class="lg-ico" style={{ borderColor: '#fde047', color: '#fde047' }}><Ico name="pad" size={15} /></span><span>Mond: Landeplatz</span></div>
           <div class="lg-title">Kontinente</div>{legendRows('continent')}
           <div class="lg-title">Unterwasserkolonien</div>{legendRows('waterColony')}

@@ -28,6 +28,8 @@ const USER = 'Karla' + Math.floor(Math.random() * 9000 + 1000);
   const setState = async (s) => { s.log = s.log.slice(-15); const r = await api(`/api/test/games/${gameId}/state`, { state: s }); assert.equal(r.status, 200, JSON.stringify(r.json)); await page.waitForTimeout(500); };
   /** sichtbare Kopie eines Gebiets (Ost-West-Umlauf rendert Kopien) antippen; Wasserfelder über die Trefferfläche */
   const tap = async (tid, p = page) => {
+    // ein offenes Aktionsmenü könnte das Ziel verdecken: wie ein Spieler zuerst schließen (✕)
+    if (await p.locator('.ctxmenu .cm-x').count()) { await p.locator('.ctxmenu .cm-x').click(); await p.waitForTimeout(120); }
     const box = await p.locator('svg.board').boundingBox();
     const cands = p.locator(`svg.board .landing-marker[data-tid="${tid}"] circle, svg.board path.hit[data-tid="${tid}"], svg.board g.badge[data-tid="${tid}"] circle.anchor`);
     const n = await cands.count();
