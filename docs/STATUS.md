@@ -2,6 +2,15 @@
 
 Stand: 2026-11-12. Grundlage ist [`KONZEPT.md`](KONZEPT.md) v1.3. Dieses Dokument trennt ehrlich, was fertig und getestet ist, was vereinfacht umgesetzt wurde und was noch fehlt.
 
+## 0000. Einsetzen und Scrollen (2026-11-13, drittes Update)
+
+| Rückmeldung | Behebung |
+|---|---|
+| Beim Verteilen der Start-MODs fehlte eine schnelle Mengenwahl; +/− war umständlich | Antippen eines eigenen Gebiets öffnet das Menü mit **+1, +2, +3, +5, +10, −1** und **Alle übrigen (n)**; es zeigt „n gesetzt · m übrig“ und bleibt offen, bis alles verteilt ist. Antippen setzt nichts mehr von allein. Dieselbe Schnellwahl (+1 +2 +3 +5, Rest) steht auch im Aufstellungsfeld. Gilt für Schnellaufstellung, Verstärken und Einsetzen im Zug |
+| Beim Anheuern ließ sich nicht scrollen, man kam nicht weiter | Die Hauptschaltfläche der Phase („Weiter …“, „Bestätigen“, „Zug beenden“) bleibt jetzt am unteren Rand des Aktionsfelds fixiert und ist immer erreichbar, auch ohne Scrollen. Die Kommandantenkarten sind kompakter, und Wischen im Aktionsfeld ist ausdrücklich freigegeben (`touch-action: pan-y`). In der Emulation scrollen Seitenleiste und schwebende Leiste per Touch; das Problem trat dort nicht auf, ich konnte es also nicht direkt nachstellen. Kommandanten lassen sich außerdem direkt im Gebietsmenü anheuern |
+
+**Offen:** Falls das Scrollen auf deinem Gerät weiter hakt, hilft mir Gerät und Browser (z. B. iPhone/Safari oder Android/Chrome, App oder Browser).
+
 ## 000. Aktionsmenü am Gebiet und Atom-Symbol (2026-11-13)
 
 | Anliegen | Umsetzung |

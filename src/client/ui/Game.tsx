@@ -230,8 +230,7 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
     if (placingTotal > 0) {
       if (t.owner !== myId) return setToast('Nur in eigene Gebiete');
       setSel(id);
-      if (placed >= placingTotal) return setToast('Alle MODs verteilt – bestätigen oder zurücksetzen');
-      setPlacements({ ...placements, [id]: (placements[id] ?? 0) + 1 });
+      if (placed >= placingTotal) setToast('Alle MODs verteilt – bestätigen oder zurücksetzen');
       return;
     }
     if ((view.phase === 'quickSetup' || view.phase === 'setupUnits') && myAction && quick.stage !== 'mods') {
@@ -252,13 +251,13 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
 
   const onTap = (id: string) => {
     onTapCore(id);
-    setMenuId(menuId === id ? null : id);     // erneutes Tippen schließt das Menü
+    setMenuId(placingTotal > 0 && !pending ? id : menuId === id ? null : id);     // erneutes Tippen schließt das Menü (beim Einsetzen bleibt es offen)
   };
 
   const otherBoardTargets = [...targets].some((id) => TDEF[id].board !== board);
 
   // ---------------------------------------------------------------- Aktionsmenü am Gebiet (nur aktuell mögliche Aktionen)
-  type MenuAct = { key: string; icon: string; label: string; sub?: string; kind?: 'ok' | 'danger' | 'warn'; run: () => void };
+  type MenuAct = { key: string; icon: string; label: string; sub?: string; kind?: 'ok' | 'danger' | 'warn'; group?: 'nums'; run: () => void };
   const menuActs = (id: string): MenuAct[] => {
     const acts: MenuAct[] = [];
     if (!myId || !myAction || busy || pending || !meP) return acts;
@@ -269,10 +268,11 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
     const close = () => setMenuId(null);
     if (placingTotal > 0) {
       if (mine) {
-        if (left > 0) acts.push({ key: 'p1', icon: 'plus', label: '+1 MOD', kind: 'ok', run: () => setPlacements({ ...placements, [id]: (placements[id] ?? 0) + 1 }) });
-        if (left >= 5) acts.push({ key: 'p5', icon: 'plus', label: '+5 MODs', run: () => setPlacements({ ...placements, [id]: (placements[id] ?? 0) + 5 }) });
+        for (const n of [1, 2, 3, 5, 10]) {
+          if (n <= left) acts.push({ key: `p${n}`, icon: 'plus', label: `+${n}`, kind: n === 1 ? 'ok' : undefined, group: 'nums', run: () => setPlacements({ ...placements, [id]: (placements[id] ?? 0) + n }) });
+        }
         if (left > 1) acts.push({ key: 'pr', icon: 'units', label: `Alle übrigen (${left})`, run: () => setPlacements({ ...placements, [id]: (placements[id] ?? 0) + left }) });
-        if ((placements[id] ?? 0) > 0) acts.push({ key: 'pm', icon: 'minus', label: '−1 MOD', run: () => setPlacements({ ...placements, [id]: placements[id] - 1 }) });
+        if ((placements[id] ?? 0) > 0) acts.push({ key: 'pm', icon: 'minus', label: `−1`, group: 'nums', run: () => setPlacements({ ...placements, [id]: placements[id] - 1 }) });
       }
       return acts;
     }
@@ -324,11 +324,18 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
         <div class="cm-head">
           {ow ? <Dot color={ow.color} size={11} /> : <Ico name="territory" size={14} />}
           <b>{tn(menuId)}</b>
-          <span class="cm-sub">{t.devastated ? 'kontaminiert' : ow ? `${units(t)} Einh.` : 'frei'}</span>
+          <span class="cm-sub">{placingTotal > 0 ? `${placements[menuId] ?? 0} gesetzt · ${placingTotal - placed} übrig` : t.devastated ? 'kontaminiert' : ow ? `${units(t)} Einh.` : 'frei'}</span>
           <button type="button" class="cm-x" aria-label="Menü schließen" onClick={() => setMenuId(null)}><Ico name="close" size={14} /></button>
         </div>
         <div class={`cm-acts ${acts.length >= 3 ? 'dense' : ''}`}>
-          {acts.map((a) => (
+          {acts.some((a) => a.group === 'nums') && (
+            <div class="cm-nums">
+              {acts.filter((a) => a.group === 'nums').map((a) => (
+                <button type="button" key={a.key} class={`cm-num ${a.kind ?? ''}`} onClick={a.run} data-act={a.key} aria-label={a.label}>{a.label}</button>
+              ))}
+            </div>
+          )}
+          {acts.filter((a) => a.group !== 'nums').map((a) => (
             <button type="button" key={a.key} class={`cm-btn ${a.kind ?? ''}`} onClick={a.run} data-act={a.key}>
               <Ico name={a.icon} size={17} /><span>{a.label}</span>{a.sub && <small>{a.sub}</small>}
             </button>
@@ -392,7 +399,13 @@ export function Game({ gameId, live, me, navigate }: { gameId: string; live: Liv
           </div>
         )}
         {sel && left > 0 && view!.territories[sel].owner === myId && (
-          <Btn kind="ghost" small onClick={() => setPlacements({ ...placements, [sel]: (placements[sel] ?? 0) + left })}>Rest ({left}) nach {tn(sel)}</Btn>
+          <div class="quicknums">
+            <span class="hint">{tn(sel)}:</span>
+            {[1, 2, 3, 5].filter((n) => n <= left).map((n) => (
+              <button type="button" key={n} class="cm-num" onClick={() => setPlacements({ ...placements, [sel]: (placements[sel] ?? 0) + n })}>+{n}</button>
+            ))}
+            <Btn kind="ghost" small onClick={() => setPlacements({ ...placements, [sel]: (placements[sel] ?? 0) + left })}>Rest ({left}) nach {tn(sel)}</Btn>
+          </div>
         )}
         {extra}
         <div class="btnrow">

@@ -372,3 +372,22 @@ table.rank .rknum { font-weight: 900; color: #fde68a; }
 .cm-acts.dense { gap: 3px; }
 .cm-acts.dense .cm-btn { min-height: 31px; padding: 3px 9px; font-size: 13px; border-radius: 9px; }
 .cm-acts.dense .cm-btn .ico { width: 15px; height: 15px; }
+
+/* ===== Mengenwahl beim Einsetzen ===== */
+.cm-nums { display: flex; flex-wrap: wrap; gap: 4px; }
+.cm-num { flex: 1 1 44px; min-width: 44px; min-height: 42px; border-radius: 11px; border: 1px solid #36527f; background: linear-gradient(180deg, #27406b, #1b2f52); color: #fff; font-size: 17px; font-weight: 900; }
+.cm-num.ok { border-color: #1f9d55; background: linear-gradient(180deg, #1f8f4f, #15703c); }
+.cm-num:active { filter: brightness(1.2); }
+.quicknums { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0; }
+.quicknums .cm-num { flex: 0 0 auto; min-width: 48px; }
+
+/* ===== Scrollen und erreichbare Schaltflächen ===== */
+.side, .fp-body, .cm-acts { touch-action: pan-y; -webkit-overflow-scrolling: touch; }
+.panel .box > .btnrow:last-child, .fp-body .box > .btnrow:last-child {
+  position: sticky; bottom: -1px; z-index: 2; margin: 10px -4px -4px; padding: 10px 4px 6px;
+  background: linear-gradient(180deg, rgba(14,24,44,0) 0, rgba(14,24,44,0.96) 28%);
+}
+.cmdgrid { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; }
+.cmdcard { padding: 6px; font-size: 12px; gap: 3px; }
+.cmdcard .btn.small { min-height: 30px; padding: 4px 8px; font-size: 12.5px; }
+.cmdcard span { font-size: 11px; }
